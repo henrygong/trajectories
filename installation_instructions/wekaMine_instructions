@@ -27,6 +27,14 @@ $ nano ~/.bash_profile
 # save and exit
 $ source ~/.bash_profile
 
+
+4.1 If you are working on tap or bop you can add the following line to your .bash_profile and wekaMine should run. I am not sure how often the wekamine code base installed here is updated though.
+
+$ nano ~/.bash_profile
+~ source /projects/sysbio/apps/wekamine_env.sh
+# save and exit
+$ source ~/.bash_profile
+
 5. Clone grapnel and install
 
 $ git clone git://github.com/jdurbin/grapnel.git
@@ -46,6 +54,7 @@ $ source ~/.bash_profile
 $ git clone git://github.com/jdurbin/durbinlib.git
 $ cd durbinlib
 $ ant install
+
 
 8. Add durbinlib to bash_profile
 
