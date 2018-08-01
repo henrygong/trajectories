@@ -1,0 +1,89 @@
+Installation instructions for zinbwave on TAP for MRO 3.4.3. Decline updates for packages in the R console if you are prompted. Remember to change path names for your machine.
+
+The libraries installed in this instruction guide are for this zinbwave tutorial: https://bioconductor.org/packages/devel/bioc/vignettes/zinbwave/inst/doc/intro.html
+
+At the end of these instructions you should be able to load the following libraries in your R console:
+
+library(zinbwave)
+library(scRNAseq)
+library(matrixStats)
+library(magrittr)
+library(ggplot2)
+library(biomaRt)
+
+
+# Anaconda MRO Links:
+https://www.anaconda.com/blog/company-blog/introducing-microsoft-r-open-as-default-r-for-anaconda-distribution/
+https://docs.anaconda.com/anaconda/user-guide/tasks/use-r-language#switch-an-environment-from-r-to-mro
+
+
+1. Update conda environment
+
+$ conda update conda
+
+2. Create a new empty conda environment and activate
+
+$ conda create --name mro_zinbwave
+$ source activate mro_zinbwave
+
+3. Install mro-base using conda
+
+$ conda install mro-base
+
+4. Install gls using conda. https://anaconda.org/conda-forge/r-gsl
+
+$ conda install -c r r-gsl
+
+5. Open R console and check that you are using MRO
+
+> version
+               _                           
+platform       x86_64-pc-linux-gnu         
+arch           x86_64                      
+os             linux-gnu                   
+system         x86_64, linux-gnu           
+status                                     
+major          3                           
+minor          4.3                         
+year           2017                        
+month          11                          
+day            30                          
+svn rev        73796                       
+language       R                           
+version.string R version 3.4.3 (2017-11-30)
+nickname       Kite-Eating Tree
+
+
+6. Install bioconductor and biocLite's base packages
+
+> source("https://bioconductor.org/biocLite.R")
+> biocLite()
+
+7. Load gsl library
+
+> library(gsl)
+
+8. Install and load copula
+
+> install.packages("copula")
+> library(copula)
+
+9. Install and load ggplot2
+> install.packages("ggplot2")
+> library(ggplpot2)
+
+10. Install and load matrixStats
+> install.packages("matrixStats")
+> library(matrixStats)
+
+10. Install the following packages using biocLite. Links to the libraries biocLite page are in the hash tags above each command.
+
+# https://bioconductor.org/packages/release/bioc/html/zinbwave.html
+> biocLite("zinbwave")
+
+# https://bioconductor.org/packages/release/data/experiment/html/scRNAseq.html 
+> biocLite("scRNAseq")
+
+# https://bioconductor.org/packages/release/bioc/html/biomaRt.html
+> biocLite("biomaRt")
+
