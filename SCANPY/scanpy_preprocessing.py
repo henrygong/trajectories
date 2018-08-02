@@ -126,7 +126,7 @@ class Single_Cell_Data_Wrangling(object):
 
     def output_h5_file(self, output_dict):
         for output_name in output_dict.keys():
-            output_dict[keys].write(output_name+".h5ad")
+            output_dict[output_name].write(output_name+".h5ad")
 
     def handler(self):
         cell_and_gene_filtered_dict = self.filter_cells_and_genes()
@@ -136,6 +136,7 @@ class Single_Cell_Data_Wrangling(object):
         variable_gene_filtered_cell_dict, gene_dispersion_dict = self.variable_gene_filtering(normalized_mito_filtered_cell_dict)
         log_filtered_cell_dict = self.log_transformation(variable_gene_filtered_cell_dict)
         regress_out_filtered_cell_dict = self.regress_out(log_filtered_cell_dict)
+        self.output_h5_file(regress_out_filtered_cell_dict)
 
 
 def generate_gene_mapping_dictionary(args):
