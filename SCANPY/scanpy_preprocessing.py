@@ -7,6 +7,7 @@ import os
 import glob
 import copy
 import argparse
+import json
 import numpy as np
 import pandas as pd
 import scanpy.api as sc
@@ -68,8 +69,8 @@ class Single_Cell_Data_Wrangling(object):
             mito_genes = [name for name in mito_stats_dict[key].var_names if name.startswith('MT.') or name.startswith('MT-')]
             mito_stats_dict[key].obs['percent_mito'] = np.sum(mito_stats_dict[key][:, mito_genes].X, axis=1) / np.sum(mito_stats_dict[key].X, axis=1)
             mito_stats_dict[key].obs['n_counts'] = np.sum(mito_stats_dict[key].X, axis=1)
-            sc.pl.scatter(mito_stats_dict[key], x = 'n_counts', y = 'percent_mito', title=key, save=key+"_percent_mito_vs_n_counts")
-            sc.pl.scatter(mito_stats_dict[key], x = 'n_counts', y = 'n_genes', title=key, save=key+"_n_genes_vs_n_count")
+            sc.pl.scatter(mito_stats_dict[key], x = 'n_counts', y = 'percent_mito', title=key, save="_"+key+"_percent_mito_vs_n_counts")
+            sc.pl.scatter(mito_stats_dict[key], x = 'n_counts', y = 'n_genes', title=key, save="_"+key+"_n_genes_vs_n_count")
         return mito_stats_dict
 
     def compute_upper_lower_gene_thresholds(self, x, y):
@@ -108,7 +109,7 @@ class Single_Cell_Data_Wrangling(object):
             gene_dispersion_dict[key] = sc.pp.filter_genes_dispersion(variable_gene_filtered_cell_dict[key].X, min_mean=0.0125, max_mean=3, min_disp=0.5)
             variable_gene_filtered_cell_dict[key] = variable_gene_filtered_cell_dict[key][:, gene_dispersion_dict[key].gene_subset]
             print('Number of variable genes identified in ' + key + ': ', sum(gene_dispersion_dict[key].gene_subset))
-            sc.pl.filter_genes_dispersion(gene_dispersion_dict[key], save=key+"_gene_dispersion_vs mean_expression")
+            sc.pl.filter_genes_dispersion(gene_dispersion_dict[key], save="_"+key+"_gene_dispersion_vs mean_expression")
         return variable_gene_filtered_cell_dict, gene_dispersion_dict
 
     def log_transformation(self, variable_gene_filtered_cell_dict):
@@ -122,6 +123,10 @@ class Single_Cell_Data_Wrangling(object):
         for key in regress_out_filtered_cell_dict.keys():
             sc.pp.regress_out(regress_out_filtered_cell_dict[key], ['n_counts', 'percent_mito'])
         return regress_out_filtered_cell_dict
+
+    def output_h5_file(self, output_dict):
+        for output_name in output_dict.keys():
+            output_dict[keys].write(output_name+".h5ad")
 
     def handler(self):
         cell_and_gene_filtered_dict = self.filter_cells_and_genes()
