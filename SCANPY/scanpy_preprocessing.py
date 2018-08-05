@@ -3,6 +3,7 @@
 import matplotlib
 import pylab as plt
 matplotlib.pyplot.switch_backend('agg')
+
 import os
 import glob
 import copy
@@ -14,26 +15,36 @@ import scanpy.api as sc
 from itertools import chain
 
 class Single_Cell_Data_Wrangling(object):
-
-    def __init__(self, cell_path_dict, ensembl2symbol):
+    def __init__(self, cell_path_dict, ensembl2symbol,\
+                minimum_cells, minimum_genes, counts_per_cell_after, \
+                thrsh_mito, up_thrsh_genes, low_thrsh_genes, output_dir):
 
         self.cell_path_dict = cell_path_dict
         self.ensembl2symbol = ensembl2symbol
         self.cell_batch_names = [batch for batch in self.cell_path_dict.keys()]
         self.cell_dict = {cell_name.split('_')[0]: [] for cell_name in cell_path_dict.keys()}
 
+        print("1. Loading single cell data.")
         for keys, values in self.cell_path_dict.items():
             adata = sc.read(values['filename_data'][0]).transpose()
             adata.var.index = ["-".join(str(hugo).replace("'","-").split("-")[1:-1]) for hugo in np.loadtxt(values['filename_genes'][0], dtype='S')[:, 1]]
             adata.var = adata.var.rename(index=self.ensembl2symbol)
             adata.obs_names = [keys.split('_')[-1] + "_" + "-".join(str(seq).replace("'","-").split("-")[1:-1]) for seq in np.loadtxt(values['filename_barcodes'][0], dtype='S')]
             adata.obs['batch_name'] = keys
+            print("Batch: ", keys)
+            print(adata)
+            print("\n")
             self.cell_dict[keys.split('_')[0]].append({keys.split('_')[-1]:adata})
+        print("\n")
 
         # Concatenate each cell batch data set
         self.concatenated_cell_dict = {key: None for key in self.cell_dict.keys()}
+        print("2. Concatenating single cell data. ")
         for keys, values in self.cell_dict.items():
+                print("Batch:", keys)
                 self.concatenated_cell_dict[keys] = values[0][list(values[0].keys())[-1]].concatenate([list(items.values())[0] for items in values[1:]], join='outer')
+                print(self.concatenated_cell_dict[keys])
+                print("\n")
 
         # Create a mapping dictionary
         self.batch_mapping_dict = {}
@@ -46,87 +57,176 @@ class Single_Cell_Data_Wrangling(object):
         for keys in self.concatenated_cell_dict.keys():
             self.concatenated_cell_dict[keys].obs["batch"].replace(self.batch_mapping_dict, inplace=True)
 
-        self.minimum_cells = 3
-        self.minimum_genes = 200
+        if minimum_cells:
+            self.minimum_cells = minimum_cells
+        else:
+            self.minimum_cells = 3
 
-        self.thrsh_mito = 0.2
-        self.up_thrsh_genes = 5000
-        self.low_thrsh_genes = 50
+        if minimum_genes:
+            self.minimum_genes = minimum_genes
+        else:
+            self.minimum_genes = 200
 
-        self.cell_counts = 1e4
+        self.cell_counts = counts_per_cell_after
 
+        self.thrsh_mito = thrsh_mito
+        self.up_thrsh_genes = up_thrsh_genes
+        self.low_thrsh_genes = low_thrsh_genes
+
+        self.output_summary_json_dict = {key: {"minimum_cells": self.minimum_cells, "minimum_genes": self.minimum_genes, "counts_per_cell_after": None, "up_thrsh_genes": None, "low_thrsh_genes": None, "thrsh_mito": None, "number_of_varible_genes_found": None} for key in self.concatenated_cell_dict.keys()}
+
+        self.output_dir = output_dir
 
     def filter_cells_and_genes(self):
         cell_and_gene_filtered_dict = copy.deepcopy(self.concatenated_cell_dict)
+        print("3. Starting cell and gene filter.")
         for key in cell_and_gene_filtered_dict.keys():
+            print("Batch: ", key)
+            print(" - Minimum cell count: " + str(self.minimum_cells))
+            print(" - Minimum gene count: " + str(self.minimum_genes))
             sc.pp.filter_cells(cell_and_gene_filtered_dict[key], min_genes = self.minimum_cells)
             sc.pp.filter_genes(cell_and_gene_filtered_dict[key], min_cells = self.minimum_genes)
+            print(cell_and_gene_filtered_dict[key])
+            print("\n")
         return cell_and_gene_filtered_dict
 
     def mitochondria_statistics(self, cell_and_gene_filtered_dict):
         mito_stats_dict = copy.deepcopy(cell_and_gene_filtered_dict)
+        print("4. Adding mitochondria percentage and gene count metadata to AnnData structure.")
         for key in mito_stats_dict.keys():
+            print("Batch: ", key)
             mito_genes = [name for name in mito_stats_dict[key].var_names if name.startswith('MT.') or name.startswith('MT-')]
             mito_stats_dict[key].obs['percent_mito'] = np.sum(mito_stats_dict[key][:, mito_genes].X, axis=1) / np.sum(mito_stats_dict[key].X, axis=1)
             mito_stats_dict[key].obs['n_counts'] = np.sum(mito_stats_dict[key].X, axis=1)
-            sc.pl.scatter(mito_stats_dict[key], x = 'n_counts', y = 'percent_mito', title=key, save="_"+key+"_percent_mito_vs_n_counts")
+            print(mito_stats_dict[key])
+            sc.pl.scatter(mito_stats_dict[key], x = 'n_counts', y = 'percent_mito', title=key, save= "_"+key+"_percent_mito_vs_n_counts")
             sc.pl.scatter(mito_stats_dict[key], x = 'n_counts', y = 'n_genes', title=key, save="_"+key+"_n_genes_vs_n_count")
+            print("\n")
         return mito_stats_dict
 
-    def compute_upper_lower_gene_thresholds(self, x, y):
+    def compute_upper_lower_gene_thresholds(self, title, x, y):
         n_counts_vs_n_genes_pd = pd.DataFrame({'x':x, 'y':y})
+        n_counts_vs_n_genes_pd.hist()
+        plt.savefig('figures/'+title+"_n_counts_vs_genes_hist.pdf")
         count, bins = np.histogram(n_counts_vs_n_genes_pd)
         up_thrsh_genes = [(x,y) for x,y in zip(count,bins) if x>= 5][-1][-1]
         low_thrsh_genes = [(x,y) for x,y in zip(count,bins)][0][1]
         return up_thrsh_genes, low_thrsh_genes
 
-    def compute_mitochondria_threshold(self, x_, y_):
+    def compute_mitochondria_threshold(self, title, x_, y_):
         n_counts_vs_mito_pct_pd = pd.DataFrame({'x': x_, 'y': y_})
+        n_counts_vs_mito_pct_pd.hist()
+        plt.savefig('figures/'+title+'_n_counts_vs_mito_pct.pdf')
         count, bins = np.histogram(n_counts_vs_mito_pct_pd)
         thrsh_mito = [(x,(y/100000)) for x,y in zip(count, bins) if x>=5][-1][-1]
         return thrsh_mito
 
     def mitochondria_filtering(self, mito_stats_dict):
         mito_filtered_cell_dict = copy.deepcopy(mito_stats_dict)
+
+        print("5. Starting filter for upper gene threshold, lower gene threshold, and mitochondria threshold. ")
         for key in mito_filtered_cell_dict.keys():
-            up_thrsh_genes, low_thrsh_genes = self.compute_upper_lower_gene_thresholds(np.array(mito_filtered_cell_dict[key].obs['n_counts']), np.array(mito_filtered_cell_dict[key].obs['n_genes']))
-            thrsh_mito = self.compute_mitochondria_threshold(np.array(mito_filtered_cell_dict[key].obs['n_counts']), np.array(mito_filtered_cell_dict[key].obs['percent_mito']))
-            mito_filtered_cell_dict[key] = mito_filtered_cell_dict[key][mito_filtered_cell_dict[key].obs['n_genes']< up_thrsh_genes, :]
-            mito_filtered_cell_dict[key] = mito_filtered_cell_dict[key][mito_filtered_cell_dict[key].obs['n_genes']> low_thrsh_genes, :]
-            mito_filtered_cell_dict[key] = mito_filtered_cell_dict[key][mito_filtered_cell_dict[key].obs['percent_mito']< thrsh_mito, :]
+            up_thrsh_genes, low_thrsh_genes = self.compute_upper_lower_gene_thresholds(key, np.array(mito_filtered_cell_dict[key].obs['n_counts']), np.array(mito_filtered_cell_dict[key].obs['n_genes']))
+            thrsh_mito = self.compute_mitochondria_threshold(key, np.array(mito_filtered_cell_dict[key].obs['n_counts']), np.array(mito_filtered_cell_dict[key].obs['percent_mito']))
+
+            print("Batch: ", key)
+            if self.up_thrsh_genes:
+                self.output_summary_json_dict[key]['up_thrsh_genes'] = self.up_thrsh_genes
+                print(" - Upper gene threshold for " + key + " was set to: " + str(self.up_thrsh_genes))
+                mito_filtered_cell_dict[key] = mito_filtered_cell_dict[key][mito_filtered_cell_dict[key].obs['n_genes']< self.up_thrsh_genes[0], :]
+            else:
+                print(" - Upper gene threshold for " + key + " was set to: " + str(up_thrsh_genes))
+                self.output_summary_json_dict[key]['up_thrsh_genes'] = up_thrsh_genes
+                mito_filtered_cell_dict[key] = mito_filtered_cell_dict[key][mito_filtered_cell_dict[key].obs['n_genes']< up_thrsh_genes, :]
+
+            if self.low_thrsh_genes:
+                print(" - Lower gene threshold for " + key + " was set to: " + str(self.low_thrsh_genes))
+                self.output_summary_json_dict[key]['low_thrsh_genes'] = self.low_thrsh_genes
+                mito_filtered_cell_dict[key] = mito_filtered_cell_dict[key][mito_filtered_cell_dict[key].obs['n_genes']> self.low_thrsh_genes[0], :]
+            else:
+                print(" - Lower gene threshold for " + key + " was set to: " + str(low_thrsh_genes))
+                self.output_summary_json_dict[key]['low_thrsh_genes'] = low_thrsh_genes
+                mito_filtered_cell_dict[key] = mito_filtered_cell_dict[key][mito_filtered_cell_dict[key].obs['n_genes']> low_thrsh_genes, :]
+
+            if self.thrsh_mito:
+                print(" - Mitochondria gene cutoff percentage for " + key + " was set to: " + str(self.thrsh_mito))
+                self.output_summary_json_dict[key]['thrsh_mito'] = self.thrsh_mito
+                mito_filtered_cell_dict[key] = mito_filtered_cell_dict[key][mito_filtered_cell_dict[key].obs['percent_mito']< self.thrsh_mito[0], :]
+            else:
+                print(" - Mitochondria gene cutoff percentage for " + key + " was set to: " + str(thrsh_mito))
+                self.output_summary_json_dict[key]['thrsh_mito'] = thrsh_mito
+                mito_filtered_cell_dict[key] = mito_filtered_cell_dict[key][mito_filtered_cell_dict[key].obs['percent_mito']< thrsh_mito, :]
+            print("\n")
         return mito_filtered_cell_dict
 
     def cell_normalization(self, mito_filtered_cell_dict):
         normalized_mito_filtered_cell_dict = copy.deepcopy(mito_filtered_cell_dict)
+        print("6. Normalize single cell data.")
         for key in normalized_mito_filtered_cell_dict.keys():
-            sc.pp.normalize_per_cell(normalized_mito_filtered_cell_dict[key], counts_per_cell_after=self.cell_counts)
+            print("Batch: ", key)
+            if self.cell_counts:
+                self.output_summary_json_dict[key]['counts_per_cell_after'] = self.counts[0]
+                sc.pp.normalize_per_cell(normalized_mito_filtered_cell_dict[key], counts_per_cell_after=self.cell_counts[0])
+            else:
+                sc.pp.normalize_per_cell(normalized_mito_filtered_cell_dict[key])
+            print(normalized_mito_filtered_cell_dict[key])
+            print("\n")
         return normalized_mito_filtered_cell_dict
 
     def variable_gene_filtering(self, normalized_mito_filtered_cell_dict):
         variable_gene_filtered_cell_dict = copy.deepcopy(normalized_mito_filtered_cell_dict)
         gene_dispersion_dict = {}
+        print("7. Searching for highly variable genes in single cell data.")
         for key in variable_gene_filtered_cell_dict.keys():
+            print("Batch: " + key)
             gene_dispersion_dict[key] = sc.pp.filter_genes_dispersion(variable_gene_filtered_cell_dict[key].X, min_mean=0.0125, max_mean=3, min_disp=0.5)
             variable_gene_filtered_cell_dict[key] = variable_gene_filtered_cell_dict[key][:, gene_dispersion_dict[key].gene_subset]
+            self.output_summary_json_dict[key]['number_of_varible_genes_found'] = sum(gene_dispersion_dict[key].gene_subset)
             print('Number of variable genes identified in ' + key + ': ', sum(gene_dispersion_dict[key].gene_subset))
+            print(variable_gene_filtered_cell_dict[key])
             sc.pl.filter_genes_dispersion(gene_dispersion_dict[key], save="_"+key+"_gene_dispersion_vs mean_expression")
+            print("\n")
         return variable_gene_filtered_cell_dict, gene_dispersion_dict
 
     def log_transformation(self, variable_gene_filtered_cell_dict):
         log_filtered_cell_dict = copy.deepcopy(variable_gene_filtered_cell_dict)
+        print("8. Log transform single cell data.")
         for key in log_filtered_cell_dict.keys():
+            print("Batch: ", key)
             sc.pp.log1p(variable_gene_filtered_cell_dict[key].X)
+            print(variable_gene_filtered_cell_dict[key])
+            print("\n")
         return log_filtered_cell_dict
 
     def regress_out(self, log_filtered_cell_dict):
         regress_out_filtered_cell_dict = copy.deepcopy(log_filtered_cell_dict)
+        print("9. Regress out variables.")
         for key in regress_out_filtered_cell_dict.keys():
+            print("Batch: ", key)
             sc.pp.regress_out(regress_out_filtered_cell_dict[key], ['n_counts', 'percent_mito'])
+            print(regress_out_filtered_cell_dict[key])
+            print("\n")
         return regress_out_filtered_cell_dict
 
     def output_h5_file(self, output_dict):
+        print("10. Exporting h5ad file.")
         for output_name in output_dict.keys():
-            output_dict[output_name].write(output_name+".h5ad")
+            print("Batch: ", output_name)
+            if self.output_dir:
+                output_dict[output_name].write(self.output_dir[0] + output_name+".h5ad")
+            else:
+                output_dict[output_name].write(output_name+".h5ad")
+        print("\n")
+
+    def output_summary_json(self):
+        print("11. Exporting summary json dictionary.")
+        print(self.output_summary_json_dict)
+        if self.output_dir:
+            with open(self.output_dir[0] + 'output_summary.json', 'w') as outfile:
+                json.dump(self.output_summary_json_dict, outfile)
+        else:
+            with open('output_summary.json', 'w') as outfile:
+                json.dump(str(self.output_summary_json_dict), outfile)
 
     def handler(self):
         cell_and_gene_filtered_dict = self.filter_cells_and_genes()
@@ -137,9 +237,12 @@ class Single_Cell_Data_Wrangling(object):
         log_filtered_cell_dict = self.log_transformation(variable_gene_filtered_cell_dict)
         regress_out_filtered_cell_dict = self.regress_out(log_filtered_cell_dict)
         self.output_h5_file(regress_out_filtered_cell_dict)
+        self.output_summary_json()
 
 
 def generate_gene_mapping_dictionary(args):
+    print("0. Building ensembl to hugo gene mapping dictionary.")
+    print("\n")
     valid_path(args.gene_id_conversion_file[0])
     symbol2ensemble = pd.read_csv(args.gene_id_conversion_file[0], sep='\t', index_col=1)\
 ['ensembl']
@@ -184,18 +287,47 @@ def main():
     parser = argparse.ArgumentParser(description = "Preprocess a sc-RNASeq run using the cellRanger filtered gene-barcode matrices containing only cellular barcodes in MEX format.")
 
     # defining arguments for parser object
-    parser.add_argument("-m", "--matrix_file", type = str, nargs = 1, default = None,
+    parser.add_argument("--matrix_file", type = str, nargs = 1,
                         help = "Path to the cellRanger output directory/directories.")
 
-    parser.add_argument("-c", "--gene_id_conversion_file", type = str, nargs = 1, default = None,
+    parser.add_argument("--gene_id_conversion_file", type = str, nargs = 1,
                         help = "Path to the Ensemble to Hugo gene ID conversion file.")
+
+    parser.add_argument("--output_dir", type = str, nargs = 1,
+                        help = "Output directory for processed single cell data in h5 file format and process summary json file.")
+
+    parser.add_argument("--min_cells", type = float, nargs = 1, default = 3,
+                        help = "Mininmum number of cells. Default is set at 3 cells.")
+
+    parser.add_argument("--min_genes", type = float, nargs = 1, default = 200,
+                        help = "Minimum number of genes expressed. Default is set at 200 genes.")
+
+    parser.add_argument("--counts_per_cell_after", type = float, nargs = 1, default = None,
+                        help = "Normalize each cell by total counts over all genes, so that every cell has the same total count after normalization. If None, after normalization, each cell has total count equal to the median of the counts_per_cell before normalization. Recommended to be set at 1e4.")
+
+    parser.add_argument("--thrsh_mito", type = float, nargs = 1, default = None,
+                        help = "Percentage cutoff of mitochondria genes in a single cell.")
+
+    parser.add_argument("--up_thrsh_genes", type = float, nargs = 1, default = None,
+                        help = "Upper limit cutoff for number of genes in a single cell.")
+
+    parser.add_argument("--low_thrsh_genes", type = float, nargs = 1, default = None,
+                        help = "Lower limit cutoff for number of genes in a single cell.")
+
 
     # parse the arguments from standard input
     args = parser.parse_args()
-
     if args.matrix_file != None and args.gene_id_conversion_file != None:
-        execute = Single_Cell_Data_Wrangling(generate_cell_batch_dictionary(args), generate_gene_mapping_dictionary(args))
+        print('Running Scanpy version', sc.__version__)
+        sc.logging.print_memory_usage()
+        print("\n")
+        execute = Single_Cell_Data_Wrangling(generate_cell_batch_dictionary(args), generate_gene_mapping_dictionary(args), \
+                                            args.min_cells, args.min_genes, args.counts_per_cell_after,
+                                            args.thrsh_mito, args.up_thrsh_genes,\
+                                            args.low_thrsh_genes, args.output_dir)
         execute.handler()
+    else:
+        print("You are required to provide a path to the matrix file(s) and gene conver id file.")
 
 
 if __name__ == '__main__':
