@@ -1,0 +1,124 @@
+scanpy_preprocessing.py
+
+The purpose of this program is to automate the pre-processing of single cell
+data using the python library scanpy.
+
+Specifically, this script is tailored for pre-processing cellRanger's
+filtered matrices output.
+
+
+CellRanger Directory Structure
+
+The script requires that the barcodes.tsv, genes.tsv, and matrix.mtx file be present.
+
+cell_batch_name
+  └── outs
+        └── filtered_gene_bc_matrices
+            └── GRCh38
+                ├── barcodes.tsv
+                ├── genes.tsv
+                └── matrix.mtx
+
+Gene ID Conversion File Format
+
+A tab separated file with the following headers:
+
+ensembl symbol  entrez  ensembl_protein
+
+
+Program Features
+
+All generated images are pdf's and are exported to a directory called 'figures'.
+The 'figures' directory is generated in the local directory when the
+script is ran, else the user can create one prior to running the script.
+
+1. Formats single cell data into annData structures
+based on the parent directory provided by the user.
+
+2. Converts gene names from Ensembl to Hugo name space.
+
+3. Filter cell outliers based on counts and number of genes expressed. The
+user may provide the minimum gene parameter via command line arguments. This parameter
+is the minimum number of genes expressed required for a cell to pass filtering. The default argument
+is set at 200.
+
+4. Filter genes based on number of cell counts. The user may provide the minimum
+cell parameter, which is the minimum number of cells expressed required for a cell
+to pass filtering.
+
+5. Generates scatter plots of the number of genes vs cell count and
+mitochondria percentage vs cell count.
+
+6. Generates histograms of the number of genes vs cell count and
+mitochondria percentage vs cell count.
+
+7. Filter cell data based on:
+    - upper gene threshold: Upper limit cutoff for number of genes in a single cell.
+    - lower gene threshold: Lower limit cutoff for number of genes in a single cell.
+    - mitochondria percentage: Percentage cutoff of mitochondria genes in a single cell.
+
+  These filter parameters can be set by the user parameter via command line arguments.
+  However, the program is dynamic in that it sets the parameters by choosing
+  the histogram bin that has larger than or equal to five samples.
+
+8. Normalize total counts per cell. The user may provide the counts_per_cell_after
+parameter via command line arguments. The recommended parameter is 1e4.
+
+If a user does not choose a parameter, each cell has a total count equal to the
+median of the counts_per_cell before normalization.
+
+9. Generates a plot dispersion versus means for genes.
+
+10. Logarithmize the data matrix.
+
+11. Regress out unwanted sources of variation. Uses
+simple linear regression.
+
+12. Export out a h5ad file for each processed batch.
+
+13. Export out a JSON file that contains the summary of the following parameters: minimum cell, minimum gene,
+counts_per_cell_after, up_thrsh_genes, low_thrsh_genes, and the thrsh_mito. The summary also reports
+the number of variable genes found for each cell batch.
+
+
+Code Example
+
+Running default:
+
+python scanpy_preprocessing.py --matrix_file cellRangerOut/ --gene_id_conversion_file gene_id_conversion.tsv
+
+Optional arguments:
+--output_dir OUTPUT_DIR
+                        Output directory for processed single cell data in h5
+                        file format and process summary json file.
+  --min_cells MIN_CELLS
+                        Mininmum number of cells. Default is set at 3 cells.
+  --min_genes MIN_GENES
+                        Minimum number of genes expressed. Default is set at
+                        200 genes.
+  --counts_per_cell_after COUNTS_PER_CELL_AFTER
+                        Normalize each cell by total counts over all genes, so
+                        that every cell has the same total count after
+                        normalization. If None, after normalization, each cell
+                        has total count equal to the median of the
+                        counts_per_cell before normalization. Recommended to
+                        be set at 1e4.
+  --thrsh_mito THRSH_MITO
+                        Percentage cutoff of mitochondria genes in a single
+                        cell.
+  --up_thrsh_genes UP_THRSH_GENES
+                        Upper limit cutoff for number of genes in a single
+                        cell.
+  --low_thrsh_genes LOW_THRSH_GENES
+                        Lower limit cutoff for number of genes in a single
+                        cell.
+
+
+Installation
+
+pip install -r requirements.txt
+
+
+References
+1. https://scanpy.readthedocs.io/en/latest/
+2. http://falexwolf.de/scanpy_usage/170503_zheng17/zheng17_pbmc64k_cellranger_Py_68000cells.html
