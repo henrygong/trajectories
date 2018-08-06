@@ -165,7 +165,7 @@ class Single_Cell_Data_Wrangling(object):
         for key in normalized_mito_filtered_cell_dict.keys():
             print("Batch: ", key)
             if self.cell_counts:
-                self.output_summary_json_dict[key]['counts_per_cell_after'] = self.counts[0]
+                self.output_summary_json_dict[key]['counts_per_cell_after'] = self.cell_counts[0]
                 sc.pp.normalize_per_cell(normalized_mito_filtered_cell_dict[key], counts_per_cell_after=self.cell_counts[0])
             else:
                 sc.pp.normalize_per_cell(normalized_mito_filtered_cell_dict[key])
