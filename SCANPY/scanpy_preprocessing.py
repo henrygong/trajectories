@@ -17,34 +17,68 @@ from itertools import chain
 class Single_Cell_Data_Wrangling(object):
     def __init__(self, cell_path_dict, ensembl2symbol,\
                 minimum_cells, minimum_genes, counts_per_cell_after, \
-                thrsh_mito, up_thrsh_genes, low_thrsh_genes, output_dir):
+                thrsh_mito, up_thrsh_genes, low_thrsh_genes, output_dir,\
+                load_h5ad, output_unprocessed_h5ad, only_export_unprocessed_h5ad):
+        self.output_dir = output_dir
+        self.load_h5ad = load_h5ad
+        if self.load_h5ad:
+            if glob.glob(self.load_h5ad[0]+"/*unprocessed.h5ad"):
+                self.concatenated_cell_dict = {}
+                if glob.glob(self.load_h5ad[0]+"/cache"):
+                    for items in glob.glob(self.load_h5ad[0]+"/*unprocessed.h5ad"):
+                        print(items.split("/")[-1])
+                        print(items.split("/")[-1].split('.')[0])
+                        self.concatenated_cell_dict[items.split("/")[-1].split('.')[0].split("_")[0]] = sc.read(self.load_h5ad[0]+"/cache/"+items.split("/")[-1].split('.')[0], cache=True)
+                else:
+                    for items in glob.glob(self.load_h5ad[0]+"/*unprocessed.h5ad"):
+                        self.concatenated_cell_dict[items.split("/")[-1].split('.')[0].split("_")[0]] = sc.read(items, cache=True)
 
-        self.cell_path_dict = cell_path_dict
-        self.ensembl2symbol = ensembl2symbol
-        self.cell_batch_names = [batch for batch in self.cell_path_dict.keys()]
-        self.cell_dict = {cell_name.split('_')[0]: [] for cell_name in cell_path_dict.keys()}
+        else:
+            self.cell_path_dict = cell_path_dict
+            self.ensembl2symbol = ensembl2symbol
+            self.cell_batch_names = [batch for batch in self.cell_path_dict.keys()]
+            self.cell_dict = {cell_name.split('_')[0]: [] for cell_name in cell_path_dict.keys()}
 
-        print("1. Loading single cell data.")
-        for keys, values in self.cell_path_dict.items():
-            adata = sc.read(values['filename_data'][0]).transpose()
-            adata.var.index = ["-".join(str(hugo).replace("'","-").split("-")[1:-1]) for hugo in np.loadtxt(values['filename_genes'][0], dtype='S')[:, 1]]
-            adata.var = adata.var.rename(index=self.ensembl2symbol)
-            adata.obs_names = [keys.split('_')[-1] + "_" + "-".join(str(seq).replace("'","-").split("-")[1:-1]) for seq in np.loadtxt(values['filename_barcodes'][0], dtype='S')]
-            adata.obs['batch_name'] = keys
-            print("Batch: ", keys)
-            print(adata)
-            print("\n")
-            self.cell_dict[keys.split('_')[0]].append({keys.split('_')[-1]:adata})
-        print("\n")
-
-        # Concatenate each cell batch data set
-        self.concatenated_cell_dict = {key: None for key in self.cell_dict.keys()}
-        print("2. Concatenating single cell data. ")
-        for keys, values in self.cell_dict.items():
-                print("Batch:", keys)
-                self.concatenated_cell_dict[keys] = values[0][list(values[0].keys())[-1]].concatenate([list(items.values())[0] for items in values[1:]], join='outer')
-                print(self.concatenated_cell_dict[keys])
+            print("1. Loading single cell data.")
+            for keys, values in self.cell_path_dict.items():
+                adata = sc.read(values['filename_data'][0]).transpose()
+                adata.var.index = ["-".join(str(hugo).replace("'","-").split("-")[1:-1]) for hugo in np.loadtxt(values['filename_genes'][0], dtype='S')[:, 1]]
+                adata.var = adata.var.rename(index=self.ensembl2symbol)
+                adata.obs_names = [keys.split('_')[-1] + "_" + "-".join(str(seq).replace("'","-").split("-")[1:-1]) for seq in np.loadtxt(values['filename_barcodes'][0], dtype='S')]
+                adata.obs['batch_name'] = keys
+                print("Batch: ", keys)
+                print(adata)
                 print("\n")
+                self.cell_dict[keys.split('_')[0]].append({keys.split('_')[-1]:adata})
+            print("\n")
+
+            # Concatenate each cell batch data set
+            self.concatenated_cell_dict = {key: None for key in self.cell_dict.keys()}
+            print("2. Concatenating single cell data. ")
+            for keys, values in self.cell_dict.items():
+                    print("Batch:", keys)
+                    self.concatenated_cell_dict[keys] = values[0][list(values[0].keys())[-1]].concatenate([list(items.values())[0] for items in values[1:]], join='outer')
+                    print(self.concatenated_cell_dict[keys])
+                    print("\n")
+
+            self.output_unprocessed_h5ad = output_unprocessed_h5ad
+            if self.output_unprocessed_h5ad:
+                for output_name in self.concatenated_cell_dict.keys():
+                            if self.output_dir:
+                                self.concatenated_cell_dict[output_name].write(self.output_dir[0]  + output_name+"_unprocessed.h5ad")
+                            else:
+                                self.concatenated_cell_dict[output_name].write(output_name+ "_unprocessed.h5ad")
+
+            self.only_export_unprocessed_h5ad = only_export_unprocessed_h5ad
+            if self.only_export_unprocessed_h5ad:
+                for output_name in self.concatenated_cell_dict.keys():
+                    if self.output_dir:
+                        self.concatenated_cell_dict[output_name].write(self.output_dir[0]  + output_name+"_unprocessed.h5ad")
+                    else:
+                        self.concatenated_cell_dict[output_name].write(output_name+ "_unprocessed.h5ad")
+                exit()
+
+
 
         # Create a mapping dictionary
         self.batch_mapping_dict = {}
@@ -74,8 +108,7 @@ class Single_Cell_Data_Wrangling(object):
         self.low_thrsh_genes = low_thrsh_genes
 
         self.output_summary_json_dict = {key: {"minimum_cells": self.minimum_cells, "minimum_genes": self.minimum_genes, "counts_per_cell_after": None, "up_thrsh_genes": None, "low_thrsh_genes": None, "thrsh_mito": None, "number_of_varible_genes_found": None} for key in self.concatenated_cell_dict.keys()}
-
-        self.output_dir = output_dir
+        self.load_h5ad = load_h5ad
 
     def filter_cells_and_genes(self):
         cell_and_gene_filtered_dict = copy.deepcopy(self.concatenated_cell_dict)
@@ -106,19 +139,27 @@ class Single_Cell_Data_Wrangling(object):
 
     def compute_upper_lower_gene_thresholds(self, title, x, y):
         n_counts_vs_n_genes_pd = pd.DataFrame({'x':x, 'y':y})
-        n_counts_vs_n_genes_pd.hist()
+        n_counts_vs_n_genes_pd.plot(x='x', y='y', kind='hist')
         plt.savefig('figures/'+title+"_n_counts_vs_genes_hist.pdf")
         count, bins = np.histogram(n_counts_vs_n_genes_pd)
-        up_thrsh_genes = [(x,y) for x,y in zip(count,bins) if x>= 5][-1][-1]
+        up_thrsh_genes = [(x,y) for x,y in zip(count,bins) if x< 1500][-1][-1]
         low_thrsh_genes = [(x,y) for x,y in zip(count,bins)][0][1]
+        check = [(x,y) for x,y in zip(count,bins) if x <= 2000][-1][-1]
+        if check != up_thrsh_genes:
+            print("Consider checking n_counts_vs_n_genes scatter plot for \
+                manually setting upper threshold for: " + title)
+            print("Less than 2,000 counts, but gene count at: ", check)
         return up_thrsh_genes, low_thrsh_genes
 
     def compute_mitochondria_threshold(self, title, x_, y_):
         n_counts_vs_mito_pct_pd = pd.DataFrame({'x': x_, 'y': y_})
-        n_counts_vs_mito_pct_pd.hist()
+        n_counts_vs_mito_pct_pd.plot(x="x", y="y", kind='hist')
         plt.savefig('figures/'+title+'_n_counts_vs_mito_pct.pdf')
-        count, bins = np.histogram(n_counts_vs_mito_pct_pd)
-        thrsh_mito = [(x,(y/100000)) for x,y in zip(count, bins) if x>=5][-1][-1]
+        # count, bins = np.histogram(n_counts_vs_mito_pct_pd)
+        #print([(x,(y/100000)) for x,y in zip(count, bins)])
+        count, bins = np.histogram(y_)
+        thrsh_mito = [(x,y) for x,y in zip(count, bins) if x<60 and x>30][-1][-1]
+        #thrsh_mito = [(x,(y/100000)) for x,y in zip(count, bins) if x>=5][-1][-1]
         return thrsh_mito
 
     def mitochondria_filtering(self, mito_stats_dict):
@@ -126,10 +167,11 @@ class Single_Cell_Data_Wrangling(object):
 
         print("5. Starting filter for upper gene threshold, lower gene threshold, and mitochondria threshold. ")
         for key in mito_filtered_cell_dict.keys():
+            print("Batch: ", key)
             up_thrsh_genes, low_thrsh_genes = self.compute_upper_lower_gene_thresholds(key, np.array(mito_filtered_cell_dict[key].obs['n_counts']), np.array(mito_filtered_cell_dict[key].obs['n_genes']))
             thrsh_mito = self.compute_mitochondria_threshold(key, np.array(mito_filtered_cell_dict[key].obs['n_counts']), np.array(mito_filtered_cell_dict[key].obs['percent_mito']))
 
-            print("Batch: ", key)
+
             if self.up_thrsh_genes:
                 self.output_summary_json_dict[key]['up_thrsh_genes'] = self.up_thrsh_genes
                 print(" - Upper gene threshold for " + key + " was set to: " + str(self.up_thrsh_genes))
@@ -165,7 +207,7 @@ class Single_Cell_Data_Wrangling(object):
         for key in normalized_mito_filtered_cell_dict.keys():
             print("Batch: ", key)
             if self.cell_counts:
-                self.output_summary_json_dict[key]['counts_per_cell_after'] = self.counts[0]
+                self.output_summary_json_dict[key]['counts_per_cell_after'] = self.cell_counts[0]
                 sc.pp.normalize_per_cell(normalized_mito_filtered_cell_dict[key], counts_per_cell_after=self.cell_counts[0])
             else:
                 sc.pp.normalize_per_cell(normalized_mito_filtered_cell_dict[key])
@@ -293,6 +335,13 @@ def main():
     parser.add_argument("--gene_id_conversion_file", type = str, nargs = 1,
                         help = "Path to the Ensemble to Hugo gene ID conversion file.")
 
+    parser.add_argument("--only_output_unprocessed_h5ad", type = str, nargs=1, help="Output an h5ad file of the unprocessed data.")
+
+    parser.add_argument("--load_h5ad", type = str, nargs = 1,
+                        help = "Path to a filtered gene matrix h5 file.")
+
+    parser.add_argument("--output_unprocessed_h5ad", type = str, nargs = 1, help = "Only create an annData h5 file from the filtered matrices output directory.")
+
     parser.add_argument("--output_dir", type = str, nargs = 1,
                         help = "Output directory for processed single cell data in h5 file format and process summary json file.")
 
@@ -324,8 +373,9 @@ def main():
         execute = Single_Cell_Data_Wrangling(generate_cell_batch_dictionary(args), generate_gene_mapping_dictionary(args), \
                                             args.min_cells, args.min_genes, args.counts_per_cell_after,
                                             args.thrsh_mito, args.up_thrsh_genes,\
-                                            args.low_thrsh_genes, args.output_dir)
+                                            args.low_thrsh_genes, args.output_dir, args.load_h5ad, args.output_unprocessed_h5ad, args.only_output_unprocessed_h5ad)
         execute.handler()
+
     else:
         print("You are required to provide a path to the matrix file(s) and gene conver id file.")
 
