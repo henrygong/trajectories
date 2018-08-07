@@ -80,15 +80,42 @@ simple linear regression.
 counts_per_cell_after, up_thrsh_genes, low_thrsh_genes, and the thrsh_mito. The summary also reports
 the number of variable genes found for each cell batch.
 
+14. Exports out the unprocessed annData h5 (ah5) file
+
+14. Option to only create an ah5 file of the data.
+
+15. Option to load an unprocessed ah5 file. Note that the user must first
+create one via this script before loading one. Recommended to run with
+only_output_unprocessed_h5ad command first.
+
 
 Code Example
 
-Running default:
+Recommended
+python scanpy_preprocessing.py --matrix_file cellRangerOut/ --gene_id_conversion_file gene_id_conversion.tsv  --output_unprocessed_h5ad true --counts_per_cell_after 1e4
 
+Running default:
 python scanpy_preprocessing.py --matrix_file cellRangerOut/ --gene_id_conversion_file gene_id_conversion.tsv
 
+Run analysis with exporting unprocessed ah5
+python scanpy_preprocessing.py --matrix_file cellRangerOut/ --gene_id_conversion_file gene_id_conversion.tsv  --output_unprocessed_h5ad true
+
+Load an unprocessed ah5 and run preprocessing
+python scanpy_preprocessing.py --matrix_file cellRangerOut/ --gene_id_conversion_file gene_id_conversion.tsv --load_h5ad parent_dir/
+
+Only create unprocessed ah5 file
+python scanpy_preprocessing.py --matrix_file cellRangerOut/ --gene_id_conversion_file gene_id_conversion.tsv --only_output_unprocessed_h5ad true
+
+
 Optional arguments:
---output_dir OUTPUT_DIR
+  --only_output_unprocessed_h5ad ONLY_OUTPUT_UNPROCESSED_H5AD
+                        Output a h5ad file of the unprocessed data.
+  --load_h5ad LOAD_H5AD
+                        Path to a filtered gene matrix h5 file.
+  --output_unprocessed_h5ad OUTPUT_UNPROCESSED_H5AD
+                        Only create a annData h5 file from the filtered
+                        matrices output directory.
+  --output_dir OUTPUT_DIR
                         Output directory for processed single cell data in h5
                         file format and process summary json file.
   --min_cells MIN_CELLS
