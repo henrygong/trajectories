@@ -22,6 +22,8 @@ class Single_Cell_Data_Wrangling(object):
         self.output_dir = output_dir
         self.load_h5ad = load_h5ad
         if self.load_h5ad:
+            print("1. Loading single cell data from h5 file.")
+            print("2. Skipping concatenation step.")
             if glob.glob(self.load_h5ad[0]+"/*unprocessed.h5ad"):
                 self.concatenated_cell_dict = {}
                 if glob.glob(self.load_h5ad[0]+"/cache"):
@@ -335,12 +337,12 @@ def main():
     parser.add_argument("--gene_id_conversion_file", type = str, nargs = 1,
                         help = "Path to the Ensemble to Hugo gene ID conversion file.")
 
-    parser.add_argument("--only_output_unprocessed_h5ad", type = str, nargs=1, help="Output an h5ad file of the unprocessed data.")
+    parser.add_argument("--only_output_unprocessed_h5ad", type = str, nargs=1, help="Output a h5ad file of the unprocessed data.")
 
     parser.add_argument("--load_h5ad", type = str, nargs = 1,
                         help = "Path to a filtered gene matrix h5 file.")
 
-    parser.add_argument("--output_unprocessed_h5ad", type = str, nargs = 1, help = "Only create an annData h5 file from the filtered matrices output directory.")
+    parser.add_argument("--output_unprocessed_h5ad", type = str, nargs = 1, help = "Only create a annData h5 file from the filtered matrices output directory.")
 
     parser.add_argument("--output_dir", type = str, nargs = 1,
                         help = "Output directory for processed single cell data in h5 file format and process summary json file.")
