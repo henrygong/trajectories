@@ -92,19 +92,19 @@ only_output_unprocessed_h5ad command first.
 Code Example
 
 Recommended
-python scanpy_preprocessing.py --matrix_file cellRangerOut/ --gene_id_conversion_file gene_id_conversion.tsv  --output_unprocessed_h5ad true --counts_per_cell_after 1e4
+python scanpy_preprocessing.py --clr_out cellRangerOut/ --gene_id_conversion_file gene_id_conversion.tsv  --output_unprocessed_h5ad true --counts_per_cell_after 1e4
 
 Running default:
-python scanpy_preprocessing.py --matrix_file cellRangerOut/ --gene_id_conversion_file gene_id_conversion.tsv
+python scanpy_preprocessing.py --clr_out cellRangerOut/ --gene_id_conversion_file gene_id_conversion.tsv
 
 Run analysis with exporting unprocessed ah5
-python scanpy_preprocessing.py --matrix_file cellRangerOut/ --gene_id_conversion_file gene_id_conversion.tsv  --output_unprocessed_h5ad true
+python scanpy_preprocessing.py --clr_out cellRangerOut/ --gene_id_conversion_file gene_id_conversion.tsv  --output_unprocessed_h5ad true
 
 Load an unprocessed ah5 and run preprocessing
-python scanpy_preprocessing.py --matrix_file cellRangerOut/ --gene_id_conversion_file gene_id_conversion.tsv --load_h5ad parent_dir/
+python scanpy_preprocessing.py --clr_out cellRangerOut/ --gene_id_conversion_file gene_id_conversion.tsv --load_h5ad parent_dir/
 
 Only create unprocessed ah5 file
-python scanpy_preprocessing.py --matrix_file cellRangerOut/ --gene_id_conversion_file gene_id_conversion.tsv --only_output_unprocessed_h5ad true
+python scanpy_preprocessing.py --clr_out cellRangerOut/ --gene_id_conversion_file gene_id_conversion.tsv --only_output_unprocessed_h5ad true
 
 
 Optional arguments:
