@@ -38,9 +38,11 @@ class Check_CIRM_Download(object):
                         'scanpy_command_line_args': {'recommended':[], \
                         'default':[]}}
                         self.cellRanger_check(p_dir.split("/")[-1])
-                        self.generate_scanpy_commands(p_dir.split("/")[-1])
+                        if self.gene_converserion_path:
+                            self.generate_scanpy_commands(p_dir.split("/")[-1])
                         print("\n")
-                self.export_bash(list(self.file_check.keys()))
+                if self.gene_converserion_path:
+                    self.export_bash(list(self.file_check.keys()))
         else:
             print("No parent directories were found!")
 
@@ -97,7 +99,7 @@ class Check_CIRM_Download(object):
         else:
             print("\t\t-Warning these batches have an outs directory but are missing a filtered_gene_bc_matrices_h5 file:")
             for items in self.file_check[p_dir]['missing_filtered_gene_bc_matrices_h5_file']:
-                print(items.split("/")[-3])
+                print(items.split("/")[0])
 
     def filtered_gene_bc_matrices_h5_dir_check(self, p_dir):
         filtered_gene_bc_matrices_files = ['barcodes.tsv', 'genes.tsv', 'matrix.mtx']
@@ -117,26 +119,26 @@ class Check_CIRM_Download(object):
         else:
             print("\t\t-Warning these batches have an outs directory but are missing a filtered_gene_bc_matrices directory:")
             for items in self.file_check[p_dir]['missing_filtered_gene_bc_matrices_h5_file']:
-                print(items.split("/")[-3])
+                print(items.split("/")[0])
 
     def generate_scanpy_commands(self, p_dir):
 
         print("\n")
         print("Generating command line arguments for SCANPY script\n")
 
-        self.file_check[p_dir]['scanpy_command_line_args']['recommended'].append('python scanpy_preprocessing.py --matrix_file' + self.file_check[p_dir]['cellRanger_path']\
-        + '/ --gene_id_conversion_file ' + self.gene_converserion_path + ' --output_unprocessed_h5ad true --counts_per_cell_after 1e4')
+        self.file_check[p_dir]['scanpy_command_line_args']['recommended'].append('python scanpy_preprocessing.py --clr_out' + self.file_check[p_dir]['cellRanger_path']\
+        + '/ --gene_id_conversion_file ' + self.gene_converserion_path[0] + ' --output_unprocessed_h5ad true --counts_per_cell_after 1e4')
 
         print("Recommended:")
-        print('\tpython scanpy_preprocessing.py --matrix_file' + self.file_check[p_dir]['cellRanger_path']\
-        + '/ --gene_id_conversion_file ' + self.gene_converserion_path + ' --output_unprocessed_h5ad true --counts_per_cell_after 1e4')
+        print('\tpython scanpy_preprocessing.py --clr_out' + self.file_check[p_dir]['cellRanger_path']\
+        + '/ --gene_id_conversion_file ' + self.gene_converserion_path[0] + ' --output_unprocessed_h5ad true --counts_per_cell_after 1e4')
 
         print("\n")
         print("Default:")
-        self.file_check[p_dir]['scanpy_command_line_args']['default'].append('python scanpy_preprocessing.py --matrix_file' + self.file_check[p_dir]['cellRanger_path']\
-        + '/ --gene_id_conversion_file ' + self.gene_converserion_path)
+        self.file_check[p_dir]['scanpy_command_line_args']['default'].append('python scanpy_preprocessing.py --clr_out' + self.file_check[p_dir]['cellRanger_path']\
+        + '/ --gene_id_conversion_file ' + self.gene_converserion_path[0])
         print('\tpython scanpy_preprocessing.py --matrix_file' + self.file_check[p_dir]['cellRanger_path']\
-        + '/ --gene_id_conversion_file ' + self.gene_converserion_path)
+        + '/ --gene_id_conversion_file ' + self.gene_converserion_path[0])
 
     def export_json(self, p_dir):
         with open('cirm_summary.json', 'w') as outfile:
@@ -166,9 +168,9 @@ def main():
                         help = "Path to the gene coversion file.")
 
     args = parser.parse_args()
-    if args.p and args.g:
+    if args.p:
         if glob.glob(args.p[0]):
-            execute = Check_CIRM_Download(args.p[0], args.g[0])
+            execute = Check_CIRM_Download(args.p[0], args.g)
             execute.check_input()
         else:
             print("The path provided is not valid!")

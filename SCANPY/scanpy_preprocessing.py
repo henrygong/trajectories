@@ -3,7 +3,6 @@
 import matplotlib
 import pylab as plt
 matplotlib.pyplot.switch_backend('agg')
-
 import os
 import glob
 import copy
@@ -23,7 +22,9 @@ class Single_Cell_Data_Wrangling(object):
         self.load_h5ad = load_h5ad
         if self.load_h5ad:
             print("1. Loading single cell data from h5 file.")
+            print("\n")
             print("2. Skipping concatenation step.")
+            print("\n")
             if glob.glob(self.load_h5ad[0]+"/*unprocessed.h5ad"):
                 self.concatenated_cell_dict = {}
                 if glob.glob(self.load_h5ad[0]+"/cache"):
@@ -143,25 +144,17 @@ class Single_Cell_Data_Wrangling(object):
         n_counts_vs_n_genes_pd = pd.DataFrame({'x':x, 'y':y})
         n_counts_vs_n_genes_pd.plot(x='x', y='y', kind='hist')
         plt.savefig('figures/'+title+"_n_counts_vs_genes_hist.pdf")
-        count, bins = np.histogram(n_counts_vs_n_genes_pd)
-        up_thrsh_genes = [(x,y) for x,y in zip(count,bins) if x< 1500][-1][-1]
+        count, bins = np.histogram(y)
+        up_thrsh_genes = [(x,y) for x,y in zip(count,bins) if x>10][-1][1]
         low_thrsh_genes = [(x,y) for x,y in zip(count,bins)][0][1]
-        check = [(x,y) for x,y in zip(count,bins) if x <= 2000][-1][-1]
-        if check != up_thrsh_genes:
-            print("Consider checking n_counts_vs_n_genes scatter plot for \
-                manually setting upper threshold for: " + title)
-            print("Less than 2,000 counts, but gene count at: ", check)
         return up_thrsh_genes, low_thrsh_genes
 
     def compute_mitochondria_threshold(self, title, x_, y_):
         n_counts_vs_mito_pct_pd = pd.DataFrame({'x': x_, 'y': y_})
         n_counts_vs_mito_pct_pd.plot(x="x", y="y", kind='hist')
         plt.savefig('figures/'+title+'_n_counts_vs_mito_pct.pdf')
-        # count, bins = np.histogram(n_counts_vs_mito_pct_pd)
-        #print([(x,(y/100000)) for x,y in zip(count, bins)])
         count, bins = np.histogram(y_)
         thrsh_mito = [(x,y) for x,y in zip(count, bins) if x<60 and x>30][-1][-1]
-        #thrsh_mito = [(x,(y/100000)) for x,y in zip(count, bins) if x>=5][-1][-1]
         return thrsh_mito
 
     def mitochondria_filtering(self, mito_stats_dict):
@@ -267,7 +260,7 @@ class Single_Cell_Data_Wrangling(object):
         print(self.output_summary_json_dict)
         if self.output_dir:
             with open(self.output_dir[0] + 'output_summary.json', 'w') as outfile:
-                json.dump(self.output_summary_json_dict, outfile)
+                json.dump(str(self.output_summary_json_dict), outfile)
         else:
             with open('output_summary.json', 'w') as outfile:
                 json.dump(str(self.output_summary_json_dict), outfile)
@@ -331,7 +324,7 @@ def main():
     parser = argparse.ArgumentParser(description = "Preprocess a sc-RNASeq run using the cellRanger filtered gene-barcode matrices containing only cellular barcodes in MEX format.")
 
     # defining arguments for parser object
-    parser.add_argument("--matrix_file", type = str, nargs = 1,
+    parser.add_argument("--clr_out", type = str, nargs = 1,
                         help = "Path to the cellRanger output directory/directories.")
 
     parser.add_argument("--gene_id_conversion_file", type = str, nargs = 1,
