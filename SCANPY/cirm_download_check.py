@@ -130,14 +130,14 @@ class Check_CIRM_Download(object):
         + '/ --gene_id_conversion_file ' + self.gene_converserion_path[0] + ' --output_unprocessed_h5ad true --counts_per_cell_after 1e4')
 
         print("Recommended:")
-        print('\tpython scanpy_preprocessing.py --clr_out' + self.file_check[p_dir]['cellRanger_path']\
+        print('\tpython scanpy_preprocessing.py --clr_out ' + self.file_check[p_dir]['cellRanger_path']\
         + '/ --gene_id_conversion_file ' + self.gene_converserion_path[0] + ' --output_unprocessed_h5ad true --counts_per_cell_after 1e4')
 
         print("\n")
         print("Default:")
         self.file_check[p_dir]['scanpy_command_line_args']['default'].append('python scanpy_preprocessing.py --clr_out' + self.file_check[p_dir]['cellRanger_path']\
         + '/ --gene_id_conversion_file ' + self.gene_converserion_path[0])
-        print('\tpython scanpy_preprocessing.py --clr_out' + self.file_check[p_dir]['cellRanger_path']\
+        print('\tpython scanpy_preprocessing.py --clr_out ' + self.file_check[p_dir]['cellRanger_path']\
         + '/ --gene_id_conversion_file ' + self.gene_converserion_path[0])
 
     def export_json(self, p_dir):
