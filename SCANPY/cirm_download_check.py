@@ -137,7 +137,7 @@ class Check_CIRM_Download(object):
         print("Default:")
         self.file_check[p_dir]['scanpy_command_line_args']['default'].append('python scanpy_preprocessing.py --clr_out' + self.file_check[p_dir]['cellRanger_path']\
         + '/ --gene_id_conversion_file ' + self.gene_converserion_path[0])
-        print('\tpython scanpy_preprocessing.py --matrix_file' + self.file_check[p_dir]['cellRanger_path']\
+        print('\tpython scanpy_preprocessing.py --clr_out' + self.file_check[p_dir]['cellRanger_path']\
         + '/ --gene_id_conversion_file ' + self.gene_converserion_path[0])
 
     def export_json(self, p_dir):
