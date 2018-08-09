@@ -289,15 +289,15 @@ def generate_gene_mapping_dictionary(args):
 
 def generate_cell_batch_dictionary(args):
     path_prefix = "/*/outs/filtered_gene_bc_matrices"
-    if glob.glob(args.matrix_file[0]+path_prefix):
+    if glob.glob(args.clr_out[0]+path_prefix):
         cell_path_dict = {}
-        for matrix_path in glob.glob(args.matrix_file[0]+path_prefix):
+        for matrix_path in glob.glob(args.clr_out[0]+path_prefix):
             cell_path_dict[matrix_path.split("/")[-3]] = {'filename_data': [value for value in glob.glob(matrix_path+"/*/*") if value.split('/')[-1].split('.')[-1] == 'mtx'], \
             'filename_genes': [value for value in glob.glob(matrix_path+"/*/*") if value.split('/')[-1] == 'genes.tsv'], \
             'filename_barcodes': [value for value in glob.glob(matrix_path+"/*/*") if value.split('/')[-1] == 'barcodes.tsv']}
         return cell_path_dict
     else:
-        print(INVALID_DIRECTORY_MSG%(args.matrix_file[0]))
+        print(INVALID_DIRECTORY_MSG%(args.clr_out[0]))
 
 
 # error messages
@@ -361,7 +361,7 @@ def main():
 
     # parse the arguments from standard input
     args = parser.parse_args()
-    if args.matrix_file != None and args.gene_id_conversion_file != None:
+    if args.clr_out != None and args.gene_id_conversion_file != None:
         print('Running Scanpy version', sc.__version__)
         sc.logging.print_memory_usage()
         print("\n")
