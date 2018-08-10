@@ -53,7 +53,6 @@ class Single_Cell_Data_Wrangling(object):
                 print(adata)
                 print("\n")
                 self.cell_dict[keys.split('_')[0]].append({keys.split('_')[-1]:adata})
-            print("\n")
 
             # Concatenate each cell batch data set
             self.concatenated_cell_dict = {key: None for key in self.cell_dict.keys()}
@@ -154,7 +153,7 @@ class Single_Cell_Data_Wrangling(object):
         n_counts_vs_mito_pct_pd.plot(x="x", y="y", kind='hist')
         plt.savefig('figures/'+title+'_n_counts_vs_mito_pct.pdf')
         count, bins = np.histogram(y_)
-        thrsh_mito = [(x,y) for x,y in zip(count, bins) if x<60 and x>30][-1][-1]
+        thrsh_mito = [(x,y) for x,y in zip(count, bins) if x<60 and x>20][-1][-1]
         return thrsh_mito
 
     def mitochondria_filtering(self, mito_stats_dict):
