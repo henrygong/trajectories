@@ -126,7 +126,7 @@ class Check_CIRM_Download(object):
         print("\n")
         print("Generating command line arguments for SCANPY script\n")
 
-        self.file_check[p_dir]['scanpy_command_line_args']['recommended'].append('python scanpy_preprocessing.py --clr_out' + self.file_check[p_dir]['cellRanger_path']\
+        self.file_check[p_dir]['scanpy_command_line_args']['recommended'].append('python scanpy_preprocessing.py --clr_out ' + self.file_check[p_dir]['cellRanger_path']\
         + '/ --gene_id_conversion_file ' + self.gene_converserion_path[0] + ' --output_unprocessed_h5ad true --counts_per_cell_after 1e4')
 
         print("Recommended:")
@@ -135,7 +135,7 @@ class Check_CIRM_Download(object):
 
         print("\n")
         print("Default:")
-        self.file_check[p_dir]['scanpy_command_line_args']['default'].append('python scanpy_preprocessing.py --clr_out' + self.file_check[p_dir]['cellRanger_path']\
+        self.file_check[p_dir]['scanpy_command_line_args']['default'].append('python scanpy_preprocessing.py --clr_out ' + self.file_check[p_dir]['cellRanger_path']\
         + '/ --gene_id_conversion_file ' + self.gene_converserion_path[0])
         print('\tpython scanpy_preprocessing.py --clr_out ' + self.file_check[p_dir]['cellRanger_path']\
         + '/ --gene_id_conversion_file ' + self.gene_converserion_path[0])
@@ -152,8 +152,6 @@ class Check_CIRM_Download(object):
             if key != 'input_path':
                 bash_output.write("\n\n")
                 bash_output.write(self.file_check[key]['scanpy_command_line_args']['recommended'][0])
-                bash_output.write("\n\n")
-                bash_output.write(self.file_check[key]['scanpy_command_line_args']['default'][0])
         bash_output.close()
 
 
