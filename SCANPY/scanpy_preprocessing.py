@@ -24,6 +24,7 @@ class Single_Cell_Data_Wrangling(object):
         self.load_h5ad = load_h5ad
 
         if self.load_h5ad:
+            # Update
             print("1. Loading single cell data from h5 file.")
             print("\n")
             print("2. Skipping concatenation step.")
@@ -70,16 +71,17 @@ class Single_Cell_Data_Wrangling(object):
                 print(adata)
                 print("Total cells: ", adata.shape[0])
                 self.check_marker_gene(adata)
-                # gene_temp_list = []
-                # for gene in adata.var_names.tolist():
-                #     if gene in self.marker_genes:
-                #         print(gene + ": " + str(sum(adata[:,[gene]].X)))
-                #         gene_temp_list.append(gene)
-                #
-                # for gene in self.marker_genes:
-                #     if gene not in gene_temp_list:
-                #         print("Missing: ", gene)
-                # print("\n")
+                print("\n")
+
+                try:
+                    if self.output_dir:
+                        if not os.path.exists(self.output_dir[0]+"/"+keys.split('_')[0]):
+                            os.makedirs(self.output_dir[0]+"/"+keys.split('_')[0])
+                    else:
+                        if not os.path.exists(keys.split('_')[0]):
+                            os.makedirs(keys.split('_')[0])
+                except OSError:
+                    print ('Error: Creating directory.')
 
                 self.cell_dict[keys.split('_')[0]].append({keys.split('_')[-1]:adata})
 
@@ -102,10 +104,14 @@ class Single_Cell_Data_Wrangling(object):
                 for output_name in self.concatenated_cell_dict.keys():
                             if self.output_dir:
                                 self.concatenated_cell_dict[output_name].\
-                                write(self.output_dir[0]  + output_name+"_unprocessed.h5ad")
+                                write(self.output_dir[0]  +\
+                                 "/" + output_name+ "/" + output_name +\
+                                  "_unprocessed.h5ad")
                             else:
-                                self.concatenated_cell_dict[output_name].write(output_name+ "_unprocessed.h5ad")
+                                self.concatenated_cell_dict[output_name].write(output_name+\
+                                 "/" + output_name + "_unprocessed.h5ad")
 
+            # Update
             self.only_export_unprocessed_h5ad = only_export_unprocessed_h5ad
             if self.only_export_unprocessed_h5ad:
                 for output_name in self.concatenated_cell_dict.keys():
@@ -165,18 +171,6 @@ class Single_Cell_Data_Wrangling(object):
         for gene in self.marker_genes:
             if gene not in gene_temp_list:
                 print("Missing: ", gene)
-                print("\n")
-
-    # def check_marker_genes(self, input_dict):
-    #     gene_temp_list = []
-    #     for batch, strc in input_dict.items():
-    #         for gene in strc.var_names.tolist():
-    #             if gene in self.marker_genes:
-    #                 print(gene + ": " + str(sum(input_dict[batch][:,[gene]].X)))
-    #                 gene_temp_list.append(gene)
-    #
-    #     self.missing_marker_gene(gene_temp_list)
-
 
     def filter_cells_and_genes(self):
         cell_and_gene_filtered_dict = copy.deepcopy(self.concatenated_cell_dict)
@@ -206,15 +200,26 @@ class Single_Cell_Data_Wrangling(object):
             mito_stats_dict[key].obs['percent_mito'] = np.sum(mito_stats_dict[key][:, mito_genes].X, axis=1) / np.sum(mito_stats_dict[key].X, axis=1)
             mito_stats_dict[key].obs['n_counts'] = np.sum(mito_stats_dict[key].X, axis=1)
             print(mito_stats_dict[key])
-            sc.pl.scatter(mito_stats_dict[key], x = 'n_counts', y = 'percent_mito', title=key, save= "_"+key+"_percent_mito_vs_n_counts")
-            sc.pl.scatter(mito_stats_dict[key], x = 'n_counts', y = 'n_genes', title=key, save="_"+key+"_n_genes_vs_n_count")
+            if self.output_dir:
+                sc.pl.scatter(mito_stats_dict[key], x = 'n_counts', y = 'percent_mito', title=key)
+                plt.savefig(self.output_dir[0] + "/"+key +"/" +key+"_percent_mito_vs_n_counts")
+                sc.pl.scatter(mito_stats_dict[key], x = 'n_counts', y = 'n_genes', title=key)
+                plt.savefig(self.output_dir[0]+"/"+key +"/" +key+"_n_genes_vs_n_count")
+            else:
+                sc.pl.scatter(mito_stats_dict[key], x = 'n_counts', y = 'percent_mito', title=key)
+                plt.savefig(key + "/" +key+"_percent_mito_vs_n_counts")
+                sc.pl.scatter(mito_stats_dict[key], x = 'n_counts', y = 'n_genes', title=key)
+                plt.savefig(key + "/" +key+"_n_genes_vs_n_count")
             print("\n")
         return mito_stats_dict
 
     def compute_upper_lower_gene_thresholds(self, title, x, y):
         n_counts_vs_n_genes_pd = pd.DataFrame({'x':x, 'y':y})
         n_counts_vs_n_genes_pd.plot(x='x', y='y', kind='hist')
-        plt.savefig('figures/'+title+"_n_counts_vs_genes_hist.pdf")
+        if self.output_dir:
+            plt.savefig(self.output_dir[0]  + '/' + title  +'/' +title+"_n_counts_vs_genes_hist.pdf")
+        else:
+            plt.savefig(title + "/" + title + "_n_counts_vs_genes_hist.pdf")
         count, bins = np.histogram(y)
         up_thrsh_genes = [(x,y) for x,y in zip(count,bins) if x>10][-1][1]
         low_thrsh_genes = [(x,y) for x,y in zip(count,bins)][0][1]
@@ -223,7 +228,11 @@ class Single_Cell_Data_Wrangling(object):
     def compute_mitochondria_threshold(self, title, x_, y_):
         n_counts_vs_mito_pct_pd = pd.DataFrame({'x': x_, 'y': y_})
         n_counts_vs_mito_pct_pd.plot(x="x", y="y", kind='hist')
-        plt.savefig('figures/'+title+'_n_counts_vs_mito_pct.pdf')
+        if self.output_dir:
+
+            plt.savefig(self.output_dir[0] +"/"+title+ "/" + title + '_n_counts_vs_mito_pct.pdf')
+        else:
+            plt.savefig(title+ "/" + title + '_n_counts_vs_mito_pct.pdf')
         count, bins = np.histogram(y_)
         thrsh_mito = [(x,y) for x,y in zip(count, bins) if x<60 and x>10][-1][-1]
         return thrsh_mito
@@ -279,6 +288,7 @@ class Single_Cell_Data_Wrangling(object):
             else:
                 sc.pp.normalize_per_cell(normalized_mito_filtered_cell_dict[key])
             print(normalized_mito_filtered_cell_dict[key])
+            self.check_marker_gene(normalized_mito_filtered_cell_dict[key])
             print("\n")
         return normalized_mito_filtered_cell_dict
 
@@ -293,7 +303,13 @@ class Single_Cell_Data_Wrangling(object):
             self.output_summary_json_dict[key]['number_of_varible_genes_found'] = sum(gene_dispersion_dict[key].gene_subset)
             print('Number of variable genes identified in ' + key + ': ', sum(gene_dispersion_dict[key].gene_subset))
             print(variable_gene_filtered_cell_dict[key])
-            sc.pl.filter_genes_dispersion(gene_dispersion_dict[key], save="_"+key+"_gene_dispersion_vs mean_expression")
+            if self.output_dir:
+                sc.pl.filter_genes_dispersion(gene_dispersion_dict[key])
+                plt.savefig(self.output_dir[0] + "/" + key + "/" + key +"_gene_dispersion_vs mean_expression")
+            else:
+                sc.pl.filter_genes_dispersion(gene_dispersion_dict[key])
+                plt.savefig(key + "/" + key +"_gene_dispersion_vs mean_expression")
+            self.check_marker_gene(variable_gene_filtered_cell_dict[key])
             print("\n")
         return variable_gene_filtered_cell_dict, gene_dispersion_dict
 
@@ -304,6 +320,7 @@ class Single_Cell_Data_Wrangling(object):
             print("Batch: ", key)
             sc.pp.log1p(variable_gene_filtered_cell_dict[key].X)
             print(variable_gene_filtered_cell_dict[key])
+            self.check_marker_gene(variable_gene_filtered_cell_dict[key])
             print("\n")
         return log_filtered_cell_dict
 
@@ -317,22 +334,29 @@ class Single_Cell_Data_Wrangling(object):
             print("Batch: ", key)
             sc.pp.regress_out(regress_out_filtered_cell_dict[key], ['n_counts', 'percent_mito'])
             print(regress_out_filtered_cell_dict[key])
+            self.check_marker_gene(regress_out_filtered_cell_dict[key])
             print("\n")
         np.warnings.resetwarnings()
         return regress_out_filtered_cell_dict
 
-    def output_h5_file(self, output_dict):
-        print("10. Exporting h5ad file.")
+    def output_h5_file(self, output_dict, suffix):
+        print("Exporting h5ad file.")
         for output_name in output_dict.keys():
             print("Batch: ", output_name)
-            if self.output_dir:
-                output_dict[output_name].write(self.output_dir[0] + output_name+".h5ad")
+            if not suffix:
+                if self.output_dir:
+                    output_dict[output_name].write(self.output_dir[0] + "/" + output_name + "/" + output_name+".h5ad")
+                else:
+                    output_dict[output_name].write("/" + output_name + "/" + output_name+".h5ad")
             else:
-                output_dict[output_name].write(output_name+".h5ad")
+                if self.output_dir:
+                        output_dict[output_name].write(self.output_dir[0] + "/" + output_name + "/" + output_name+ suffix + ".h5ad")
+                else:
+                    output_dict[output_name].write("/" + output_name + suffix + ".h5ad")
         print("\n")
 
     def output_summary_json(self):
-        print("11. Exporting summary json dictionary.")
+        print("Exporting summary json dictionary.")
         print(self.output_summary_json_dict)
         if self.output_dir:
             with open(self.output_dir[0] + 'output_summary.json', 'w') as outfile:
@@ -346,11 +370,26 @@ class Single_Cell_Data_Wrangling(object):
         mito_stats_dict = self.mitochondria_statistics(cell_and_gene_filtered_dict)
         mito_filtered_cell_dict = self.mitochondria_filtering(mito_stats_dict)
         normalized_mito_filtered_cell_dict = self.cell_normalization(mito_filtered_cell_dict)
+
+        # Full preprocessing
         variable_gene_filtered_cell_dict, gene_dispersion_dict = self.variable_gene_filtering(normalized_mito_filtered_cell_dict)
         log_filtered_cell_dict = self.log_transformation(variable_gene_filtered_cell_dict)
         regress_out_filtered_cell_dict = self.regress_out(log_filtered_cell_dict)
-        self.output_h5_file(regress_out_filtered_cell_dict)
+        self.output_h5_file(regress_out_filtered_cell_dict, False)
         self.output_summary_json()
+        print("\n")
+
+        # Skip variable gene filtering
+        print("Rerunning pipeline at step 7 but skipping variable gene filtering.")
+        log_filtered_cell_dict_v2 = self.log_transformation(normalized_mito_filtered_cell_dict)
+        regress_out_filtered_cell_dict_v2 = self.regress_out(log_filtered_cell_dict_v2)
+        self.output_h5_file(regress_out_filtered_cell_dict_v2, '_log_regressed')
+        print("\n")
+
+        # Skip variable gene filtering and regression
+        print("Rerunning pipeline at step 7 but skipping variable gene filtering and regression.")
+        log_filtered_cell_dict_v3 = self.log_transformation(normalized_mito_filtered_cell_dict)
+        self.output_h5_file(log_filtered_cell_dict_v3, '_log')
 
 
 def generate_gene_mapping_dictionary(args):
