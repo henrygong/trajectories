@@ -165,6 +165,7 @@ class Single_Cell_Data_Wrangling(object):
         for gene in self.marker_genes:
             if gene not in gene_temp_list:
                 print("Missing: ", gene)
+                print("\n")
 
     # def check_marker_genes(self, input_dict):
     #     gene_temp_list = []
