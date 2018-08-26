@@ -55,8 +55,8 @@ class Single_Cell_Data_Wrangling(object):
             self.cell_path_dict = cell_path_dict
             self.ensembl2symbol = ensembl2symbol
             self.cell_batch_names = [batch for batch in self.cell_path_dict.keys()]
-            print(self.cell_batch_names)
             self.cell_dict = {cell_name: [] for cell_name in cell_path_dict.keys()}
+            self.marker_gene_dict = {cell_name: {gene: [] for gene in self.marker_genes} for cell_name in cell_path_dict.keys()}
 
             print("1. Loading single cell data.")
             for keys, values in self.cell_path_dict.items():
@@ -76,8 +76,6 @@ class Single_Cell_Data_Wrangling(object):
                 print("Batch: ", keys)
                 print(adata)
                 print("Total cells: ", adata.shape[0])
-                self.check_marker_gene(adata)
-                print("\n")
 
                 try:
                     if self.output_dir:
@@ -90,6 +88,16 @@ class Single_Cell_Data_Wrangling(object):
                     print ('Error: Creating directory.')
 
                 self.cell_dict[keys].append({keys:adata})
+                gene_temp_list = []
+                for gene in adata.var_names.tolist():
+                    if gene in self.marker_genes:
+                        print(gene + ": " + str(sum(adata[:,[gene]].X)))
+                        self.marker_gene_dict[keys][gene].append(sum(adata[:,[gene]].X))
+                        self.marker_gene_dict[keys]['full_set'] = adata[:, [gene]].X
+                        self.marker_gene_dict[keys]['total_cells'] = adata.shape[0]
+                        gene_temp_list.append(gene)
+                self.missing_marker_gene(gene_temp_list)
+                print("\n")
 
             # Concatenate each cell batch data set
             self.concatenated_cell_dict = {key: None for key in self.cell_dict.keys()}
@@ -364,6 +372,8 @@ class Single_Cell_Data_Wrangling(object):
     def output_summary_json(self):
         print("Exporting summary json dictionary.")
         print(self.output_summary_json_dict)
+        for key in self.output_summary_json.keys():
+            self.output_summary_json[keys].update(self.marker_gene_dict[keys])
         if self.output_dir:
             with open(self.output_dir[0] + 'output_summary.json', 'w') as outfile:
                 json.dump(str(self.output_summary_json_dict), outfile)
