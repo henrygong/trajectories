@@ -319,8 +319,8 @@ class Single_Cell_Data_Wrangling(object):
         for key in log_filtered_cell_dict.keys():
             print("Batch: ", key)
             sc.pp.log1p(variable_gene_filtered_cell_dict[key].X)
-            print(variable_gene_filtered_cell_dict[key])
-            self.check_marker_gene(variable_gene_filtered_cell_dict[key])
+            print(log_filtered_cell_dict[key])
+            self.check_marker_gene(log_filtered_cell_dict[key])
             print("\n")
         return log_filtered_cell_dict
 
