@@ -217,13 +217,19 @@ class Single_Cell_Data_Wrangling(object):
             if self.output_dir:
                 sc.pl.scatter(mito_stats_dict[key], x = 'n_counts', y = 'percent_mito', title=key)
                 plt.savefig(self.output_dir[0] + "/"+key +"/preprocessing_figures/" +key+"_percent_mito_vs_n_counts")
+                plt.close('all')
+
                 sc.pl.scatter(mito_stats_dict[key], x = 'n_counts', y = 'n_genes', title=key)
                 plt.savefig(self.output_dir[0]+"/"+key +"/preprocessing_figures/" +key+"_n_genes_vs_n_count")
+                plt.close('all')
             else:
                 sc.pl.scatter(mito_stats_dict[key], x = 'n_counts', y = 'percent_mito', title=key)
                 plt.savefig(key + "/preprocessing_figures/" +key+"_percent_mito_vs_n_counts")
+                plt.close('all')
+
                 sc.pl.scatter(mito_stats_dict[key], x = 'n_counts', y = 'n_genes', title=key)
                 plt.savefig(key + "/preprocessing_figures/" +key+"_n_genes_vs_n_count")
+                plt.close('all')
             print("\n")
         return mito_stats_dict
 
@@ -232,8 +238,10 @@ class Single_Cell_Data_Wrangling(object):
         n_counts_vs_n_genes_pd.plot(x='x', y='y', kind='hist')
         if self.output_dir:
             plt.savefig(self.output_dir[0]  + '/' + title  +'/preprocessing_figures/' +title+"_n_counts_vs_genes_hist.pdf")
+            plt.close('all')
         else:
             plt.savefig(title + "/preprocessing_figures/" + title + "_n_counts_vs_genes_hist.pdf")
+            plt.close('all')
         count, bins = np.histogram(y)
         up_thrsh_genes = [(x,y) for x,y in zip(count,bins) if x>10][-1][1]
         low_thrsh_genes = [(x,y) for x,y in zip(count,bins)][0][1]
@@ -243,10 +251,11 @@ class Single_Cell_Data_Wrangling(object):
         n_counts_vs_mito_pct_pd = pd.DataFrame({'x': x_, 'y': y_})
         n_counts_vs_mito_pct_pd.plot(x="x", y="y", kind='hist')
         if self.output_dir:
-
             plt.savefig(self.output_dir[0] +"/"+title+ "/preprocessing_figures/" + title + '_n_counts_vs_mito_pct.pdf')
+            plt.close('all')
         else:
             plt.savefig(title+ "/preprocessing_figures/" + title + '_n_counts_vs_mito_pct.pdf')
+            plt.close('all')
         count, bins = np.histogram(y_)
         thrsh_mito = [(x,y) for x,y in zip(count, bins) if x<60 and x>10][-1][-1]
         return thrsh_mito
@@ -320,9 +329,11 @@ class Single_Cell_Data_Wrangling(object):
             if self.output_dir:
                 sc.pl.filter_genes_dispersion(gene_dispersion_dict[key])
                 plt.savefig(self.output_dir[0] + "/" + key + "/preprocessing_figures/" + key +"_gene_dispersion_vs mean_expression")
+                plt.close('all')
             else:
                 sc.pl.filter_genes_dispersion(gene_dispersion_dict[key])
                 plt.savefig(key + "/preprocessing_figures/" + key +"_gene_dispersion_vs mean_expression")
+                plt.close('all')
             self.check_marker_gene(variable_gene_filtered_cell_dict[key])
             print("\n")
         return variable_gene_filtered_cell_dict, gene_dispersion_dict
@@ -372,8 +383,8 @@ class Single_Cell_Data_Wrangling(object):
     def output_summary_json(self):
         print("Exporting summary json dictionary.")
         print(self.output_summary_json_dict)
-        for key in self.output_summary_json.keys():
-            self.output_summary_json[keys].update(self.marker_gene_dict[keys])
+        for key in self.output_summary_json_dict.keys():
+            self.output_summary_json_dict[keys].update(self.marker_gene_dict[keys])
         if self.output_dir:
             with open(self.output_dir[0] + 'output_summary.json', 'w') as outfile:
                 json.dump(str(self.output_summary_json_dict), outfile)

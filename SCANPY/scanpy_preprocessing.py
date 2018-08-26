@@ -8,6 +8,7 @@ import glob
 import copy
 import argparse
 import json
+import pickle
 import numpy as np
 import pandas as pd
 import scanpy.api as sc
@@ -21,6 +22,12 @@ class Single_Cell_Data_Wrangling(object):
                 marker_genes):
 
         self.output_dir = output_dir
+        try:
+            if not os.path.exists(self.output_dir[0]):
+                os.makedirs(self.output_dir[0])
+        except OSError:
+            print("Error creating directory.")
+
         self.load_h5ad = load_h5ad
 
         if self.load_h5ad:
@@ -50,6 +57,7 @@ class Single_Cell_Data_Wrangling(object):
             self.ensembl2symbol = ensembl2symbol
             self.cell_batch_names = [batch for batch in self.cell_path_dict.keys()]
             self.cell_dict = {cell_name.split('_')[0]: [] for cell_name in cell_path_dict.keys()}
+            self.marker_gene_dict = {cell_name: {gene: [] for gene in self.marker_genes} for cell_name in cell_path_dict.keys()}
 
             print("1. Loading single cell data.")
             for keys, values in self.cell_path_dict.items():
@@ -70,20 +78,27 @@ class Single_Cell_Data_Wrangling(object):
                 print("Batch: ", keys)
                 print(adata)
                 print("Total cells: ", adata.shape[0])
-                self.check_marker_gene(adata)
-                print("\n")
 
                 try:
                     if self.output_dir:
                         if not os.path.exists(self.output_dir[0]+"/"+keys.split('_')[0]):
-                            os.makedirs(self.output_dir[0]+"/"+keys.split('_')[0])
+                            os.makedirs(self.output_dir[0]+"/"+keys.split('_')[0]+"/preprocessing_figures")
                     else:
                         if not os.path.exists(keys.split('_')[0]):
-                            os.makedirs(keys.split('_')[0])
+                            os.makedirs(keys.split('_')[0]+"/preprocessing_figures")
                 except OSError:
                     print ('Error: Creating directory.')
-
                 self.cell_dict[keys.split('_')[0]].append({keys.split('_')[-1]:adata})
+                gene_temp_list = []
+                for gene in adata.var_names.tolist():
+                    if gene in self.marker_genes:
+                        print(gene + ": " + str(sum(adata[:,[gene]].X)))
+                        self.marker_gene_dict[keys][gene].append(sum(adata[:,[gene]].X))
+                        self.marker_gene_dict[keys]['full_set'] = adata[:, [gene]].X
+                        self.marker_gene_dict[keys]['total_cells'] = adata.shape[0]
+                        gene_temp_list.append(gene)
+                self.missing_marker_gene(gene_temp_list)
+                print("\n")
 
             # Concatenate each cell batch data set
             self.concatenated_cell_dict = {key: None for key in self.cell_dict.keys()}
@@ -105,11 +120,11 @@ class Single_Cell_Data_Wrangling(object):
                             if self.output_dir:
                                 self.concatenated_cell_dict[output_name].\
                                 write(self.output_dir[0]  +\
-                                 "/" + output_name+ "/" + output_name +\
+                                 "/" + output_name+ "/gene_matrices/" + output_name +\
                                   "_unprocessed.h5ad")
                             else:
                                 self.concatenated_cell_dict[output_name].write(output_name+\
-                                 "/" + output_name + "_unprocessed.h5ad")
+                                 "/gene_matrices/" + output_name + "_unprocessed.h5ad")
 
             # Update
             self.only_export_unprocessed_h5ad = only_export_unprocessed_h5ad
@@ -202,14 +217,14 @@ class Single_Cell_Data_Wrangling(object):
             print(mito_stats_dict[key])
             if self.output_dir:
                 sc.pl.scatter(mito_stats_dict[key], x = 'n_counts', y = 'percent_mito', title=key)
-                plt.savefig(self.output_dir[0] + "/"+key +"/" +key+"_percent_mito_vs_n_counts")
+                plt.savefig(self.output_dir[0] + "/"+key +"/preprocessing_figures/" +key+"_percent_mito_vs_n_counts")
                 sc.pl.scatter(mito_stats_dict[key], x = 'n_counts', y = 'n_genes', title=key)
-                plt.savefig(self.output_dir[0]+"/"+key +"/" +key+"_n_genes_vs_n_count")
+                plt.savefig(self.output_dir[0]+"/"+key +"/preprocessing_figures/" +key+"_n_genes_vs_n_count")
             else:
                 sc.pl.scatter(mito_stats_dict[key], x = 'n_counts', y = 'percent_mito', title=key)
-                plt.savefig(key + "/" +key+"_percent_mito_vs_n_counts")
+                plt.savefig(key + "/preprocessing_figures/" +key+"_percent_mito_vs_n_counts")
                 sc.pl.scatter(mito_stats_dict[key], x = 'n_counts', y = 'n_genes', title=key)
-                plt.savefig(key + "/" +key+"_n_genes_vs_n_count")
+                plt.savefig(key + "/preprocessing_figures/" +key+"_n_genes_vs_n_count")
             print("\n")
         return mito_stats_dict
 
@@ -217,9 +232,9 @@ class Single_Cell_Data_Wrangling(object):
         n_counts_vs_n_genes_pd = pd.DataFrame({'x':x, 'y':y})
         n_counts_vs_n_genes_pd.plot(x='x', y='y', kind='hist')
         if self.output_dir:
-            plt.savefig(self.output_dir[0]  + '/' + title  +'/' +title+"_n_counts_vs_genes_hist.pdf")
+            plt.savefig(self.output_dir[0]  + '/' + title  +'/preprocessing_figures/' +title+"_n_counts_vs_genes_hist.pdf")
         else:
-            plt.savefig(title + "/" + title + "_n_counts_vs_genes_hist.pdf")
+            plt.savefig(title + "/preprocessing_figures/" + title + "_n_counts_vs_genes_hist.pdf")
         count, bins = np.histogram(y)
         up_thrsh_genes = [(x,y) for x,y in zip(count,bins) if x>10][-1][1]
         low_thrsh_genes = [(x,y) for x,y in zip(count,bins)][0][1]
@@ -230,9 +245,9 @@ class Single_Cell_Data_Wrangling(object):
         n_counts_vs_mito_pct_pd.plot(x="x", y="y", kind='hist')
         if self.output_dir:
 
-            plt.savefig(self.output_dir[0] +"/"+title+ "/" + title + '_n_counts_vs_mito_pct.pdf')
+            plt.savefig(self.output_dir[0] +"/"+title+ "/preprocessing_figures/" + title + '_n_counts_vs_mito_pct.pdf')
         else:
-            plt.savefig(title+ "/" + title + '_n_counts_vs_mito_pct.pdf')
+            plt.savefig(title+ "/preprocessing_figures/" + title + '_n_counts_vs_mito_pct.pdf')
         count, bins = np.histogram(y_)
         thrsh_mito = [(x,y) for x,y in zip(count, bins) if x<60 and x>10][-1][-1]
         return thrsh_mito
@@ -305,10 +320,10 @@ class Single_Cell_Data_Wrangling(object):
             print(variable_gene_filtered_cell_dict[key])
             if self.output_dir:
                 sc.pl.filter_genes_dispersion(gene_dispersion_dict[key])
-                plt.savefig(self.output_dir[0] + "/" + key + "/" + key +"_gene_dispersion_vs mean_expression")
+                plt.savefig(self.output_dir[0] + "/" + key + "/preprocessing_figures/" + key +"_gene_dispersion_vs mean_expression")
             else:
                 sc.pl.filter_genes_dispersion(gene_dispersion_dict[key])
-                plt.savefig(key + "/" + key +"_gene_dispersion_vs mean_expression")
+                plt.savefig(key + "/preprocessing_figures/" + key +"_gene_dispersion_vs mean_expression")
             self.check_marker_gene(variable_gene_filtered_cell_dict[key])
             print("\n")
         return variable_gene_filtered_cell_dict, gene_dispersion_dict
@@ -345,25 +360,26 @@ class Single_Cell_Data_Wrangling(object):
             print("Batch: ", output_name)
             if not suffix:
                 if self.output_dir:
-                    output_dict[output_name].write(self.output_dir[0] + "/" + output_name + "/" + output_name+".h5ad")
+                    output_dict[output_name].write(self.output_dir[0] + "/" + output_name + "/gene_matrices/" + output_name+".h5ad")
                 else:
-                    output_dict[output_name].write("/" + output_name + "/" + output_name+".h5ad")
+                    output_dict[output_name].write("/" + output_name + "/gene_matrices/" + output_name+".h5ad")
             else:
                 if self.output_dir:
-                        output_dict[output_name].write(self.output_dir[0] + "/" + output_name + "/" + output_name+ suffix + ".h5ad")
+                        output_dict[output_name].write(self.output_dir[0] + "/" + output_name + "/gene_matrices/" + output_name+ suffix + ".h5ad")
                 else:
-                    output_dict[output_name].write("/" + output_name + suffix + ".h5ad")
+                    output_dict[output_name].write("/gene_matrices/" + output_name + suffix + ".h5ad")
         print("\n")
 
     def output_summary_json(self):
-        print("Exporting summary json dictionary.")
+        print("Exporting summary pickle file.")
         print(self.output_summary_json_dict)
+        self.output_summary_json_dict.update(self.marker_gene_dict)
         if self.output_dir:
-            with open(self.output_dir[0] + 'output_summary.json', 'w') as outfile:
-                json.dump(str(self.output_summary_json_dict), outfile)
+            with open(self.output_dir[0] + 'output_summary.pkl', 'wb') as outfile:
+                pickle.dump(self.output_summary_json_dict, outfile, protocol=pickle.HIGHEST_PROTOCOL)
         else:
-            with open('output_summary.json', 'w') as outfile:
-                json.dump(str(self.output_summary_json_dict), outfile)
+            with open('output_summary.pkl', 'w') as outfile:
+                pickle.dump(self.output_summary_json_dict, outfile, protocol=pickle.HIGHEST_PROTOCOL)
 
     def handler(self):
         cell_and_gene_filtered_dict = self.filter_cells_and_genes()
@@ -403,15 +419,14 @@ def generate_gene_mapping_dictionary(args):
     return ensembl2symbol
 
 def generate_cell_batch_dictionary(args):
-    # path_prefix = "/*/outs/filtered_gene_bc_matrices"
-    path_prefix = "/*"
+    path_prefix = "/*/outs/filtered_gene_bc_matrices"
+    # path_prefix = "/*"
     if glob.glob(args.clr_out[0]+path_prefix):
         cell_path_dict = {}
         for matrix_path in glob.glob(args.clr_out[0]+path_prefix):
             cell_path_dict[matrix_path.split("/")[-3]] = {'filename_data': [value for value in glob.glob(matrix_path+"/*/*") if value.split('/')[-1].split('.')[-1] == 'mtx'], \
             'filename_genes': [value for value in glob.glob(matrix_path+"/*/*") if value.split('/')[-1] == 'genes.tsv'], \
             'filename_barcodes': [value for value in glob.glob(matrix_path+"/*/*") if value.split('/')[-1] == 'barcodes.tsv']}
-        print(cell_path_dict)
         return cell_path_dict
     else:
         print(INVALID_DIRECTORY_MSG%(args.clr_out[0]))
