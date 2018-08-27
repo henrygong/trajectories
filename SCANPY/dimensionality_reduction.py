@@ -40,15 +40,6 @@ class PCA_Analysis(object):
             if len(processed_file.split('/')[-1].split('_')) == 2:
                 self.adata_dict[processed_file.split('/')[-1].split('.')[0]] = sc.read(processed_file)
 
-    def mkdir_p(self, mypath):
-        '''Creates a directory. equivalent to using mkdir -p on the command line'''
-        try:
-            makedirs(mypath)
-        except OSError as exc: # Python >2.5
-            if exc.errno == EEXIST and path.isdir(mypath):
-                pass
-            else: raise
-
     def scale_data(self):
         scaled_adata_dict = copy.deepcopy(self.adata_dict)
         for batches, strc in scaled_adata_dict.items():
@@ -73,7 +64,6 @@ class PCA_Analysis(object):
 
 
     def plot_number_of_components(self):
-        self.mkdir_p('pca_Analysis')
         for batches, strc in self.adata_dict.items():
             plt.plot(np.cumsum(self.adata_dict[batches].uns['pca']['variance_ratio']))
             plt.title(batches)
