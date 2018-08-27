@@ -7,7 +7,6 @@ import os
 import glob
 import copy
 import argparse
-import json
 import pickle
 import numpy as np
 import pandas as pd
@@ -15,12 +14,13 @@ import scanpy.api as sc
 # from itertools import chain
 
 class Single_Cell_Data_Wrangling(object):
-    def __init__(self, cell_path_dict, ensembl2symbol,\
+    def __init__(self, clr_out, cell_path_dict, ensembl2symbol,\
                 minimum_cells, minimum_genes, counts_per_cell_after, \
                 thrsh_mito, up_thrsh_genes, low_thrsh_genes, output_dir,\
                 load_h5ad, output_unprocessed_h5ad, only_export_unprocessed_h5ad,\
                 marker_genes):
 
+        self.clr_out = clr_out[0].split("/")[-3]
         self.output_dir = output_dir
         try:
             if not os.path.exists(self.output_dir[0]):
@@ -57,8 +57,8 @@ class Single_Cell_Data_Wrangling(object):
             self.ensembl2symbol = ensembl2symbol
             self.cell_batch_names = [batch for batch in self.cell_path_dict.keys()]
             self.cell_dict = {cell_name.split('_')[0]: [] for cell_name in cell_path_dict.keys()}
-            self.marker_gene_dict = {cell_name: {gene: [] for gene in self.marker_genes} for cell_name in cell_path_dict.keys()}
-
+            # self.marker_gene_dict = {cell_name: {gene: [] for gene in self.marker_genes} for cell_name in cell_path_dict.keys()}
+            self.marker_gene_dict = {cell_name: {gene: {'sum': None, 'full_set': None, 'total_cells': None} for gene in self.marker_genes} for cell_name in cell_path_dict.keys()}
             print("1. Loading single cell data.")
             for keys, values in self.cell_path_dict.items():
 
@@ -93,9 +93,9 @@ class Single_Cell_Data_Wrangling(object):
                 for gene in adata.var_names.tolist():
                     if gene in self.marker_genes:
                         print(gene + ": " + str(sum(adata[:,[gene]].X)))
-                        self.marker_gene_dict[keys][gene].append(sum(adata[:,[gene]].X))
-                        self.marker_gene_dict[keys]['full_set'] = adata[:, [gene]].X
-                        self.marker_gene_dict[keys]['total_cells'] = adata.shape[0]
+                        self.marker_gene_dict[keys][gene]['sum'] = sum(adata[:,[gene]].X)
+                        self.marker_gene_dict[keys][gene]['full_set'] = adata[:, [gene]].X
+                        self.marker_gene_dict[keys][gene]['total_cells'] = adata.shape[0]
                         gene_temp_list.append(gene)
                 self.missing_marker_gene(gene_temp_list)
                 print("\n")
@@ -375,7 +375,7 @@ class Single_Cell_Data_Wrangling(object):
         print(self.output_summary_json_dict)
         self.output_summary_json_dict.update(self.marker_gene_dict)
         if self.output_dir:
-            with open(self.output_dir[0] + 'output_summary.pkl', 'wb') as outfile:
+            with open(self.output_dir[0] + self.clr_out + '_output_summary.pkl', 'wb') as outfile:
                 pickle.dump(self.output_summary_json_dict, outfile, protocol=pickle.HIGHEST_PROTOCOL)
         else:
             with open('output_summary.pkl', 'w') as outfile:
@@ -503,7 +503,7 @@ def main():
             print("Marker gene input: ", args.marker_genes)
         print("\n")
 
-        execute = Single_Cell_Data_Wrangling(generate_cell_batch_dictionary(args), generate_gene_mapping_dictionary(args), \
+        execute = Single_Cell_Data_Wrangling(args.clr_out, generate_cell_batch_dictionary(args), generate_gene_mapping_dictionary(args), \
                                             args.min_cells, args.min_genes, args.counts_per_cell_after,
                                             args.thrsh_mito, args.up_thrsh_genes,\
                                             args.low_thrsh_genes, args.output_dir,\

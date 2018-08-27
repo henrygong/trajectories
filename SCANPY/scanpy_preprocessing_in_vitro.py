@@ -7,7 +7,7 @@ import os
 import glob
 import copy
 import argparse
-import json
+import pickle
 import numpy as np
 import pandas as pd
 import scanpy.api as sc
@@ -56,7 +56,7 @@ class Single_Cell_Data_Wrangling(object):
             self.ensembl2symbol = ensembl2symbol
             self.cell_batch_names = [batch for batch in self.cell_path_dict.keys()]
             self.cell_dict = {cell_name: [] for cell_name in cell_path_dict.keys()}
-            self.marker_gene_dict = {cell_name: {gene: [] for gene in self.marker_genes} for cell_name in cell_path_dict.keys()}
+            self.marker_gene_dict = {cell_name: {gene: {'sum': None, 'full_set': None, 'total_cells': None} for gene in self.marker_genes} for cell_name in cell_path_dict.keys()}
 
             print("1. Loading single cell data.")
             for keys, values in self.cell_path_dict.items():
@@ -92,9 +92,9 @@ class Single_Cell_Data_Wrangling(object):
                 for gene in adata.var_names.tolist():
                     if gene in self.marker_genes:
                         print(gene + ": " + str(sum(adata[:,[gene]].X)))
-                        self.marker_gene_dict[keys][gene].append(sum(adata[:,[gene]].X))
-                        self.marker_gene_dict[keys]['full_set'] = adata[:, [gene]].X
-                        self.marker_gene_dict[keys]['total_cells'] = adata.shape[0]
+                        self.marker_gene_dict[keys][gene]['sum'] = sum(adata[:,[gene]].X)
+                        self.marker_gene_dict[keys][gene]['full_set'] = adata[:, [gene]].X
+                        self.marker_gene_dict[keys][gene]['total_cells'] = adata.shape[0]
                         gene_temp_list.append(gene)
                 self.missing_marker_gene(gene_temp_list)
                 print("\n")
@@ -383,14 +383,13 @@ class Single_Cell_Data_Wrangling(object):
     def output_summary_json(self):
         print("Exporting summary json dictionary.")
         print(self.output_summary_json_dict)
-        for key in self.output_summary_json_dict.keys():
-            self.output_summary_json_dict[keys].update(self.marker_gene_dict[keys])
+        self.output_summary_json_dict.update(self.marker_gene_dict)
         if self.output_dir:
-            with open(self.output_dir[0] + 'output_summary.json', 'w') as outfile:
-                json.dump(str(self.output_summary_json_dict), outfile)
+            with open(self.output_dir[0] + 'output_summary.pkl', 'wb') as outfile:
+                pickle.dump(self.output_summary_json_dict, outfile, protocol=pickle.HIGHEST_PROTOCOL)
         else:
-            with open('output_summary.json', 'w') as outfile:
-                json.dump(str(self.output_summary_json_dict), outfile)
+            with open('output_summary.pkl', 'w') as outfile:
+                pickle.dump(self.output_summary_json_dict, outfile, protocol=pickle.HIGHEST_PROTOCOL)
 
     def handler(self):
         cell_and_gene_filtered_dict = self.filter_cells_and_genes()
