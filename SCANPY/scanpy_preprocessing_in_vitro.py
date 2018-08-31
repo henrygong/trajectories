@@ -383,7 +383,9 @@ class Single_Cell_Data_Wrangling(object):
     def output_summary_json(self):
         print("Exporting summary json dictionary.")
         print(self.output_summary_json_dict)
-        self.output_summary_json_dict.update(self.marker_gene_dict)
+        for keys in self.marker_gene_dict.keys():
+            self.output_summary_json_dict[keys].update(self.marker_gene_dict[keys])
+
         if self.output_dir:
             with open(self.output_dir[0] + 'output_summary.pkl', 'wb') as outfile:
                 pickle.dump(self.output_summary_json_dict, outfile, protocol=pickle.HIGHEST_PROTOCOL)
