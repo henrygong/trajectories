@@ -100,7 +100,10 @@ class Single_Cell_Data_Wrangling(object):
                 print("\n")
 
             # Concatenate each cell batch data set
-            self.concatenated_cell_dict = {key: None for key in self.cell_dict.keys()}
+            self.concatenated_cell_dict = {key: [] for key in self.cell_dict.keys()}
+            for keys, values in self.cell_dict.items():
+                cell_dict[keys.split('_')[0]].append(values[0])
+
             print("2. Concatenating single cell data. ")
             for keys, values in self.cell_dict.items():
                     print("Batch:", keys)
