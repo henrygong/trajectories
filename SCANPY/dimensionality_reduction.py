@@ -21,6 +21,7 @@ class PCA_Analysis(object):
         self.scanpy_pca = scanpy_pca
         self.adata_dict = {}
 
+
         # Create output directories
         for output_dir in glob.glob(ah5_path+"/*"):
             # Made change for in vitro data
@@ -37,12 +38,14 @@ class PCA_Analysis(object):
 
         for processed_file in glob.glob(ah5_path+"*/gene_matrices/*.h5ad"):
             # Made changes for in vitro data
-            if len(processed_file.split('/')[-1].split('_')) == 2:
+            if len(processed_file.split('/')[-1].split('_')) < 2:
+                print(processed_file)
                 self.adata_dict[processed_file.split('/')[-1].split('.')[0]] = sc.read(processed_file)
-
+        print(self.adata_dict.keys())
     def scale_data(self):
         scaled_adata_dict = copy.deepcopy(self.adata_dict)
         for batches, strc in scaled_adata_dict.items():
+            print(strc.X)
             scaled_adata_dict[batches] = StandardScaler().fit_transform(strc.X)
         return scaled_adata_dict
 
