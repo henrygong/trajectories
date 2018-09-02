@@ -79,8 +79,8 @@ class Single_Cell_Data_Wrangling(object):
 
                 try:
                     if self.output_dir:
-                        if not os.path.exists(self.output_dir[0]+"/"+keys.split('_')[0]):
-                            os.makedirs(self.output_dir[0]+"/"+keys.split('_')[0]+"/preprocessing_figures")
+                        if not os.path.exists(self.output_dir[0]+"/"+keys):
+                            os.makedirs(self.output_dir[0]+"/"+keys+"/preprocessing_figures")
                         if not os.path.exists(self.output_dir[0]+"/preprocessing_summary"):
                             os.makedirs(self.output_dir[0]+"/preprocessing_summary")
                     else:
@@ -102,12 +102,12 @@ class Single_Cell_Data_Wrangling(object):
                 print("\n")
 
             # Concatenate each cell batch data set
-            self.concatenated_cell_dict = {key.split('_')[0]: [] for key in self.cell_dict.keys()}
-            for keys, values in self.cell_dict.items():
-                self.cell_dict[keys.split('_')[0]].append(values[0])
+            self.concatenated_cell_dict = {key: [] for key in self.cell_dict.keys()}
+            # for keys, values in self.cell_dict.items():
+            #     cell_dict[keys.split('_')[0]].append(values[0])
 
             print("2. Concatenating single cell data. ")
-            for keys, values in self.concatenated_cell_dict.items():
+            for keys, values in self.cell_dict.items():
                     print("Batch:", keys)
 
                     self.concatenated_cell_dict[keys] = values[0][list(values[0].\
@@ -392,10 +392,10 @@ class Single_Cell_Data_Wrangling(object):
             self.output_summary_json_dict[keys].update(self.marker_gene_dict[keys])
 
         if self.output_dir:
-            with open(self.output_dir[0] + 'output_summary.pkl', 'wb') as outfile:
+            with open(self.output_dir[0] + '/preprocessing_summary/in_vitro_HoC_output_summary.pkl', 'wb') as outfile:
                 pickle.dump(self.output_summary_json_dict, outfile, protocol=pickle.HIGHEST_PROTOCOL)
         else:
-            with open('output_summary.pkl', 'w') as outfile:
+            with open('/preprocessing_summary/in_vitro_HoC_output_summary.pkl', 'w') as outfile:
                 pickle.dump(self.output_summary_json_dict, outfile, protocol=pickle.HIGHEST_PROTOCOL)
 
     def handler(self):
