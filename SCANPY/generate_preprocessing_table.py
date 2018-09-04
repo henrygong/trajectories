@@ -50,12 +50,12 @@ def main():
     # create a parser object
     parser = argparse.ArgumentParser(description = "Generate preprocessing summary table.")
 
-    parser.add_argument("--summary_picke", type = str, nargs = 1,
+    parser.add_argument("--summary_pickle", type = str, nargs = 1,
                         help = "Path to the pre-processed summary output pickle file.")
 
     args = parser.parse_args()
-    if args.summary_picke[0] != None:
-        execute = Generate_Preprocessing_Table(args.summary_picke[0])
+    if args.summary_pickle[0] != None:
+        execute = Generate_Preprocessing_Table(args.summary_pickle[0])
         execute.export_excel_report()
 
 if __name__ == '__main__':
