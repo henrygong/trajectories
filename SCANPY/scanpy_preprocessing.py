@@ -10,8 +10,8 @@ import argparse
 import pickle
 import numpy as np
 import pandas as pd
+import openpyxl
 import scanpy.api as sc
-# from itertools import chain
 
 class Single_Cell_Data_Wrangling(object):
     def __init__(self, clr_out, cell_path_dict, ensembl2symbol,\
@@ -83,6 +83,8 @@ class Single_Cell_Data_Wrangling(object):
                     if self.output_dir:
                         if not os.path.exists(self.output_dir[0]+"/"+keys.split('_')[0]):
                             os.makedirs(self.output_dir[0]+"/"+keys.split('_')[0]+"/preprocessing_figures")
+                        if not os.path.exists(self.output_dir[0]+"/preprocessing_summary"):
+                            os.makedirs(self.output_dir[0]+"/preprocessing_summary")
                     else:
                         if not os.path.exists(keys.split('_')[0]):
                             os.makedirs(keys.split('_')[0]+"/preprocessing_figures")
@@ -165,10 +167,10 @@ class Single_Cell_Data_Wrangling(object):
         self.up_thrsh_genes = up_thrsh_genes
         self.low_thrsh_genes = low_thrsh_genes
 
-        self.output_summary_json_dict = {key: {"minimum_cells": self.minimum_cells,\
+        self.output_summary = {key: {"minimum_cells": self.minimum_cells,\
          "minimum_genes": self.minimum_genes, "counts_per_cell_after": None,\
           "up_thrsh_genes": None, "low_thrsh_genes": None, "thrsh_mito": None,\
-           "number_of_varible_genes_found": None}\
+           "number_of_variable_genes_found": None}\
             for key in self.concatenated_cell_dict.keys()}
 
         self.load_h5ad = load_h5ad
@@ -263,30 +265,30 @@ class Single_Cell_Data_Wrangling(object):
 
 
             if self.up_thrsh_genes:
-                self.output_summary_json_dict[key]['up_thrsh_genes'] = self.up_thrsh_genes
+                self.output_summary[key]['up_thrsh_genes'] = self.up_thrsh_genes
                 print(" - Upper gene threshold for " + key + " was set to: " + str(self.up_thrsh_genes))
                 mito_filtered_cell_dict[key] = mito_filtered_cell_dict[key][mito_filtered_cell_dict[key].obs['n_genes']< self.up_thrsh_genes[0], :]
             else:
                 print(" - Upper gene threshold for " + key + " was set to: " + str(up_thrsh_genes))
-                self.output_summary_json_dict[key]['up_thrsh_genes'] = up_thrsh_genes
+                self.output_summary[key]['up_thrsh_genes'] = up_thrsh_genes
                 mito_filtered_cell_dict[key] = mito_filtered_cell_dict[key][mito_filtered_cell_dict[key].obs['n_genes']< up_thrsh_genes, :]
 
             if self.low_thrsh_genes:
                 print(" - Lower gene threshold for " + key + " was set to: " + str(self.low_thrsh_genes))
-                self.output_summary_json_dict[key]['low_thrsh_genes'] = self.low_thrsh_genes
+                self.output_summary[key]['low_thrsh_genes'] = self.low_thrsh_genes
                 mito_filtered_cell_dict[key] = mito_filtered_cell_dict[key][mito_filtered_cell_dict[key].obs['n_genes']> self.low_thrsh_genes[0], :]
             else:
                 print(" - Lower gene threshold for " + key + " was set to: " + str(low_thrsh_genes))
-                self.output_summary_json_dict[key]['low_thrsh_genes'] = low_thrsh_genes
+                self.output_summary[key]['low_thrsh_genes'] = low_thrsh_genes
                 mito_filtered_cell_dict[key] = mito_filtered_cell_dict[key][mito_filtered_cell_dict[key].obs['n_genes']> low_thrsh_genes, :]
 
             if self.thrsh_mito:
                 print(" - Mitochondria gene cutoff percentage for " + key + " was set to: " + str(self.thrsh_mito))
-                self.output_summary_json_dict[key]['thrsh_mito'] = self.thrsh_mito
+                self.output_summary[key]['thrsh_mito'] = self.thrsh_mito
                 mito_filtered_cell_dict[key] = mito_filtered_cell_dict[key][mito_filtered_cell_dict[key].obs['percent_mito']< self.thrsh_mito[0], :]
             else:
                 print(" - Mitochondria gene cutoff percentage for " + key + " was set to: " + str(thrsh_mito))
-                self.output_summary_json_dict[key]['thrsh_mito'] = thrsh_mito
+                self.output_summary[key]['thrsh_mito'] = thrsh_mito
                 mito_filtered_cell_dict[key] = mito_filtered_cell_dict[key][mito_filtered_cell_dict[key].obs['percent_mito']< thrsh_mito, :]
             self.check_marker_gene(mito_filtered_cell_dict[key])
             print("\n")
@@ -298,7 +300,7 @@ class Single_Cell_Data_Wrangling(object):
         for key in normalized_mito_filtered_cell_dict.keys():
             print("Batch: ", key)
             if self.cell_counts:
-                self.output_summary_json_dict[key]['counts_per_cell_after'] = self.cell_counts[0]
+                self.output_summary[key]['counts_per_cell_after'] = self.cell_counts[0]
                 sc.pp.normalize_per_cell(normalized_mito_filtered_cell_dict[key], counts_per_cell_after=self.cell_counts[0])
             else:
                 sc.pp.normalize_per_cell(normalized_mito_filtered_cell_dict[key])
@@ -315,7 +317,7 @@ class Single_Cell_Data_Wrangling(object):
             print("Batch: " + key)
             gene_dispersion_dict[key] = sc.pp.filter_genes_dispersion(variable_gene_filtered_cell_dict[key].X, min_mean=0.0125, max_mean=3, min_disp=0.5)
             variable_gene_filtered_cell_dict[key] = variable_gene_filtered_cell_dict[key][:, gene_dispersion_dict[key].gene_subset]
-            self.output_summary_json_dict[key]['number_of_varible_genes_found'] = sum(gene_dispersion_dict[key].gene_subset)
+            self.output_summary[key]['number_of_varible_genes_found'] = sum(gene_dispersion_dict[key].gene_subset)
             print('Number of variable genes identified in ' + key + ': ', sum(gene_dispersion_dict[key].gene_subset))
             print(variable_gene_filtered_cell_dict[key])
             if self.output_dir:
@@ -370,16 +372,16 @@ class Single_Cell_Data_Wrangling(object):
                     output_dict[output_name].write("/gene_matrices/" + output_name + suffix + ".h5ad")
         print("\n")
 
-    def output_summary_json(self):
+    def output_summary_pickle(self):
         print("Exporting summary pickle file.")
-        print(self.output_summary_json_dict)
-        self.output_summary_json_dict.update(self.marker_gene_dict)
+        print(self.output_summary)
+        self.output_summary.update(self.marker_gene_dict)
         if self.output_dir:
-            with open(self.output_dir[0] + self.clr_out + '_output_summary.pkl', 'wb') as outfile:
-                pickle.dump(self.output_summary_json_dict, outfile, protocol=pickle.HIGHEST_PROTOCOL)
+            with open(self.output_dir[0] + 'preprocessing_summary/' + self.clr_out + '_output_summary.pkl', 'wb') as outfile:
+                pickle.dump(self.output_summary, outfile, protocol=pickle.HIGHEST_PROTOCOL)
         else:
             with open('output_summary.pkl', 'w') as outfile:
-                pickle.dump(self.output_summary_json_dict, outfile, protocol=pickle.HIGHEST_PROTOCOL)
+                pickle.dump('/preprocessing_summary/' + self.output_summary, outfile, protocol=pickle.HIGHEST_PROTOCOL)
 
     def handler(self):
         cell_and_gene_filtered_dict = self.filter_cells_and_genes()
@@ -392,7 +394,7 @@ class Single_Cell_Data_Wrangling(object):
         log_filtered_cell_dict = self.log_transformation(variable_gene_filtered_cell_dict)
         regress_out_filtered_cell_dict = self.regress_out(log_filtered_cell_dict)
         self.output_h5_file(regress_out_filtered_cell_dict, False)
-        self.output_summary_json()
+        self.output_summary_pickle()
         print("\n")
 
         # Skip variable gene filtering
