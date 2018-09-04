@@ -172,7 +172,7 @@ class Single_Cell_Data_Wrangling(object):
         self.output_summary = {key: {"minimum_cells": self.minimum_cells,\
          "minimum_genes": self.minimum_genes, "counts_per_cell_after": None,\
           "up_thrsh_genes": None, "low_thrsh_genes": None, "thrsh_mito": None,\
-           "number_of_varible_genes_found": None}\
+           "number_of_variable_genes_found": None}\
             for key in self.concatenated_cell_dict.keys()}
 
         self.load_h5ad = load_h5ad
