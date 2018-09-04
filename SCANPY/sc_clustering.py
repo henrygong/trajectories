@@ -24,7 +24,7 @@ class Single_Cell_Clustering(object):
             self.adata_dict[processed_file.split('/')[-3]] = sc.read(processed_file)
 
         for output_dir in glob.glob(pca_h5ad+"*/"):
-            if output_dir.split("/")[-1].split(".")[-1] == 'pkl':
+            if output_dir.split("/")[-1] == 'preprocessing_summary':
                 pass
             else:
                 try:
@@ -34,14 +34,14 @@ class Single_Cell_Clustering(object):
                     if not os.path.exists(output_dir + "/cluster_analysis"):
                         os.makedirs(output_dir + "/cluster_analysis")
 
-                    if not os.path.exists(output_dir + "/cluster_analysis/tSNE"):
-                        os.makedirs(output_dir + "/cluster_analysis/tSNE")
-
-                    if not os.path.exists(output_dir + "/cluster_analysis/umap"):
-                        os.makedirs(output_dir + "/cluster_analysis/umap")
-
-                    if not os.path.exists(output_dir + "/cluster_analysis/louvain"):
-                        os.makedirs(output_dir + "/cluster_analysis/louvain")
+                    # if not os.path.exists(output_dir + "/cluster_analysis/tSNE"):
+                    #     os.makedirs(output_dir + "/cluster_analysis/tSNE")
+                    #
+                    # if not os.path.exists(output_dir + "/cluster_analysis/umap"):
+                    #     os.makedirs(output_dir + "/cluster_analysis/umap")
+                    #
+                    # if not os.path.exists(output_dir + "/cluster_analysis/louvain"):
+                    #     os.makedirs(output_dir + "/cluster_analysis/louvain")
 
                 except OSError:
                     print("Error creating directory")
@@ -56,31 +56,31 @@ class Single_Cell_Clustering(object):
             print(batches)
             sc.tl.tsne(self.adata_dict[batches],  random_state = 2, n_pcs = self.n_pcs,\
             use_fast_tsne=True, n_jobs=1)
-            sc.pl.tsne(self.adata_dict[batches], color='batch_name', title=batches)
-            plt.savefig(self.prefix + batches + '/cluster_analysis/tSNE/' + batches + '_pca_tsne_.png', format="PNG")
-            plt.close()
+            # sc.pl.tsne(self.adata_dict[batches], color='batch_name', title=batches)
+            # plt.savefig(self.prefix + batches + '/cluster_analysis/tSNE/' + batches + '_pca_tsne_.png', format="PNG")
+            # plt.close()
 
     def compute_neighborhood_graph_and_umap(self):
         for batches,stc in self.adata_dict.items():
             sc.pp.neighbors(self.adata_dict[batches], n_neighbors=self.n_neighbors, n_pcs=self.n_pcs)
             sc.tl.umap(self.adata_dict[batches])
 
-            sc.pl.umap(self.adata_dict[batches], color='batch_name', title=batches)
-            plt.savefig(self.prefix + batches + '/cluster_analysis/umap/' + batches + '_umap.png', format="PNG")
-            plt.close()
+            # sc.pl.umap(self.adata_dict[batches], color='batch_name', title=batches)
+            # plt.savefig(self.prefix + batches + '/cluster_analysis/umap/' + batches + '_umap.png', format="PNG")
+            # plt.close()
 
     def louvain_clustering(self):
         for batches, stc in self.adata_dict.items():
             sc.pp.neighbors(self.adata_dict[batches], n_neighbors=self.n_neighbors, n_pcs=self.n_pcs)
             sc.tl.louvain(self.adata_dict[batches])
+            #
+            # sc.pl.tsne(self.adata_dict[batches], color='louvain', title=batches)
+            # plt.savefig(self.prefix + batches + '/cluster_analysis/louvain/{}_tSNE_louvain.png'.format(batches), format="PNG")
+            # plt.close()
 
-            sc.pl.tsne(self.adata_dict[batches], color='louvain', title=batches)
-            plt.savefig(self.prefix + batches + '/cluster_analysis/louvain/{}_tSNE_louvain.png'.format(batches), format="PNG")
-            plt.close()
-
-            sc.pl.umap(self.adata_dict[batches], color='louvain', title=batches)
-            plt.savefig(self.prefix + batches + '/cluster_analysis/louvain/{}_umap_louvain.png'.format(batches), format="PNG")
-            plt.close()
+            # sc.pl.umap(self.adata_dict[batches], color='louvain', title=batches)
+            # plt.savefig(self.prefix + batches + '/cluster_analysis/louvain/{}_umap_louvain.png'.format(batches), format="PNG")
+            # plt.close()
 
     def export_h5ad(self):
         for batches, stc in self.adata_dict.items():
@@ -95,7 +95,7 @@ class Single_Cell_Clustering(object):
 
 def main():
     # create a parser object
-    parser = argparse.ArgumentParser(description = "Cluster visualization of single cell dataset.")
+    parser = argparse.ArgumentParser(description = "Cluster single cell data.")
     # defining arguments for parser object
     parser.add_argument("-pca_h5ad", type = str, nargs = 1,
                         help = "Path to the parent directory containing the cell batches PCA h5ad files.")
