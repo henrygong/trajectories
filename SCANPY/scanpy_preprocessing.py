@@ -2,6 +2,8 @@
 # importing required modules
 import matplotlib
 import pylab as plt
+import matplotlib.lines as mlines
+from matplotlib.lines import Line2D
 matplotlib.pyplot.switch_backend('agg')
 import os
 import glob
@@ -250,16 +252,16 @@ class Single_Cell_Data_Wrangling(object):
             mito_stats_dict[key].obs['percent_mito'] = np.sum(mito_stats_dict[key][:, mito_genes].X, axis=1) / np.sum(mito_stats_dict[key].X, axis=1)
             mito_stats_dict[key].obs['n_counts'] = np.sum(mito_stats_dict[key].X, axis=1)
             print(mito_stats_dict[key])
-            if self.output_dir:
-                sc.pl.scatter(mito_stats_dict[key], x = 'n_counts', y = 'percent_mito', title=key)
-                plt.savefig(self.output_dir[0] + "/"+key +"/preprocessing_figures/" +key+"_percent_mito_vs_n_counts")
-                sc.pl.scatter(mito_stats_dict[key], x = 'n_counts', y = 'n_genes', title=key)
-                plt.savefig(self.output_dir[0]+"/"+key +"/preprocessing_figures/" +key+"_n_genes_vs_n_count")
-            else:
-                sc.pl.scatter(mito_stats_dict[key], x = 'n_counts', y = 'percent_mito', title=key)
-                plt.savefig(key + "/preprocessing_figures/" +key+"_percent_mito_vs_n_counts")
-                sc.pl.scatter(mito_stats_dict[key], x = 'n_counts', y = 'n_genes', title=key)
-                plt.savefig(key + "/preprocessing_figures/" +key+"_n_genes_vs_n_count")
+            # if self.output_dir:
+            #     sc.pl.scatter(mito_stats_dict[key], x = 'n_counts', y = 'percent_mito', title=key)
+            #     plt.savefig(self.output_dir[0] + "/"+key +"/preprocessing_figures/" +key+"_percent_mito_vs_n_counts")
+            #     sc.pl.scatter(mito_stats_dict[key], x = 'n_counts', y = 'n_genes', title=key)
+            #     plt.savefig(self.output_dir[0]+"/"+key +"/preprocessing_figures/" +key+"_n_genes_vs_n_count")
+            # else:
+            #     sc.pl.scatter(mito_stats_dict[key], x = 'n_counts', y = 'percent_mito', title=key)
+            #     plt.savefig(key + "/preprocessing_figures/" +key+"_percent_mito_vs_n_counts")
+            #     sc.pl.scatter(mito_stats_dict[key], x = 'n_counts', y = 'n_genes', title=key)
+            #     plt.savefig(key + "/preprocessing_figures/" +key+"_n_genes_vs_n_count")
             print("\n")
         return mito_stats_dict
 
@@ -295,7 +297,7 @@ class Single_Cell_Data_Wrangling(object):
             up_thrsh_genes, low_thrsh_genes = self.compute_upper_lower_gene_thresholds(key, np.array(mito_filtered_cell_dict[key].obs['n_counts']), np.array(mito_filtered_cell_dict[key].obs['n_genes']))
             thrsh_mito = self.compute_mitochondria_threshold(key, np.array(mito_filtered_cell_dict[key].obs['n_counts']), np.array(mito_filtered_cell_dict[key].obs['percent_mito']))
 
-
+            # Upper threshold
             if self.up_thrsh_genes:
                 self.output_summary[key]['up_thrsh_genes'] = self.up_thrsh_genes
                 print(" - Upper gene threshold for " + key + " was set to: " + str(self.up_thrsh_genes))
@@ -305,6 +307,7 @@ class Single_Cell_Data_Wrangling(object):
                 self.output_summary[key]['up_thrsh_genes'] = up_thrsh_genes
                 mito_filtered_cell_dict[key] = mito_filtered_cell_dict[key][mito_filtered_cell_dict[key].obs['n_genes']< up_thrsh_genes, :]
 
+            # Lower threshold
             if self.low_thrsh_genes:
                 print(" - Lower gene threshold for " + key + " was set to: " + str(self.low_thrsh_genes))
                 self.output_summary[key]['low_thrsh_genes'] = self.low_thrsh_genes
@@ -314,6 +317,32 @@ class Single_Cell_Data_Wrangling(object):
                 self.output_summary[key]['low_thrsh_genes'] = low_thrsh_genes
                 mito_filtered_cell_dict[key] = mito_filtered_cell_dict[key][mito_filtered_cell_dict[key].obs['n_genes']> low_thrsh_genes, :]
 
+            # Cell threshold boundaries
+            col = np.where(mito_filtered_cell_dict[key].obs['n_genes']>self.output_summary[key]['up_thrsh_genes'], 'r',\
+                        np.where(mito_filtered_cell_dict[key].obs['n_genes']<self.output_summary[key]['low_thrsh_genes'],'blue','grey'))
+            # Scatter plot
+            cell_scatter = plt.scatter(mito_filtered_cell_dict[key].obs['n_counts'],\
+            mito_filtered_cell_dict[key].obs['n_genes'],\
+            s=1, c=col)
+            # Red lines
+            plt.hlines(y=self.output_summary[key]['up_thrsh_genes'], xmin=-1, xmax=50000,   color='red')
+            plt.hlines(y=self.output_summary[key]['low_thrsh_genes'], xmin=-1, xmax=50000,   color='blue')
+            # plt.text(50000,self.output_summary[key]['up_thrsh_genes']+1, s='Upper Threshold: ' + str(self.output_summary[key]['up_thrsh_genes']))
+            # plt.text(50000,self.output_summary[key]['low_thrsh_genes']+1, s='Lower Threshold: ' + str(self.output_summary[key]['low_thrsh_genes']))
+            legend_elements = [Line2D([0], [0], color='r', lw=1, label='Upper Gene Threshold: {0:.2f}'.format(round(self.output_summary[key]['up_thrsh_genes'],2))),\
+            Line2D([0], [0], color='blue', lw=1, label='Lower Gene Threshold: {0:.2f}'.format(round(self.output_summary[key]['low_thrsh_genes'],2)))]
+            plt.legend(handles=legend_elements, loc='upper right')
+            plt.xlabel('n_counts', fontsize=18)
+            plt.ylabel('n_genes', fontsize=16)
+            if self.output_dir:
+                plt.savefig(self.output_dir[0]+"/"+key +"/preprocessing_figures/" +key+"_n_genes_vs_n_count")
+                plt.close()
+            else:
+                plt.savefig(key + "/preprocessing_figures/" +key+"_n_genes_vs_n_count")
+                plt.close()
+            plt.close()
+
+            # Mitochondria threshold
             if self.thrsh_mito:
                 print(" - Mitochondria gene cutoff percentage for " + key + " was set to: " + str(self.thrsh_mito))
                 self.output_summary[key]['thrsh_mito'] = self.thrsh_mito
@@ -323,6 +352,27 @@ class Single_Cell_Data_Wrangling(object):
                 self.output_summary[key]['thrsh_mito'] = thrsh_mito
                 mito_filtered_cell_dict[key] = mito_filtered_cell_dict[key][mito_filtered_cell_dict[key].obs['percent_mito']< thrsh_mito, :]
             self.check_marker_gene(mito_filtered_cell_dict[key])
+
+            # mito threshold boundaries
+            mito_col = np.where(mito_filtered_cell_dict[key].obs['percent_mito']<self.output_summary[key]['thrsh_mito'],'grey','r')
+            # Scatter plot
+            mito_scatter = plt.scatter(mito_filtered_cell_dict[key].obs['n_counts'], mito_filtered_cell_dict[key].obs['percent_mito'],\
+            s=1, c=mito_col)
+            # Red lines
+            plt.hlines(y=self.output_summary[key]['thrsh_mito'], xmin=-1, xmax=50000,   color='red')
+            # plt.text(50000,self.output_summary[key]['thrsh_mito']+1, s='Mito Threshold: ' + str(self.output_summary[key]['thrsh_mito']))
+            legend_elements = [Line2D([0], [0], color='r', lw=1, label='Mito Threshold: {0:.2f}'.format(round(self.output_summary[key]['thrsh_mito'], 2)))]
+            plt.legend(handles=legend_elements, loc='center right')
+            plt.xlabel('n_counts', fontsize=18)
+            plt.ylabel('percent_mito', fontsize=16)
+            if self.output_dir:
+                plt.savefig(self.output_dir[0]+"/"+key +"/preprocessing_figures/" +key+"_percent_mito_vs_n_counts")
+                plt.close()
+            else:
+                plt.savefig(key + "/preprocessing_figures/" +key+"_percent_mito_vs_n_counts")
+                plt.close()
+            plt.close()
+
             print("\n")
         return mito_filtered_cell_dict
 
