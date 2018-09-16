@@ -6,6 +6,7 @@ matplotlib.pyplot.switch_backend('agg')
 import os
 import glob
 import copy
+import json
 import argparse
 import pickle
 import numpy as np
@@ -20,6 +21,11 @@ class Single_Cell_Data_Wrangling(object):
                 load_h5ad, output_unprocessed_h5ad, only_export_unprocessed_h5ad,\
                 marker_genes):
 
+        if marker_genes:
+            self.marker_genes = list(map(lambda x: x.strip(), marker_genes.readlines()))
+            print(self.marker_genes)
+            print("\n")
+        self.clr_og = clr_out
         self.clr_out = clr_out[0].split("/")[-3]
         self.output_dir = output_dir
         try:
@@ -52,7 +58,7 @@ class Single_Cell_Data_Wrangling(object):
                         .split('.')[0].split("_")[0]] = sc.read(items, cache=True)
 
         else:
-            self.marker_genes = marker_genes
+
             self.cell_path_dict = cell_path_dict
             self.ensembl2symbol = ensembl2symbol
             self.cell_batch_names = [batch for batch in self.cell_path_dict.keys()]
@@ -60,6 +66,7 @@ class Single_Cell_Data_Wrangling(object):
             # self.marker_gene_dict = {cell_name: {gene: [] for gene in self.marker_genes} for cell_name in cell_path_dict.keys()}
             self.marker_gene_dict = {cell_name: {gene: {'sum': None, 'full_set': None, 'total_cells': None} for gene in self.marker_genes} for cell_name in cell_path_dict.keys()}
             print("1. Loading single cell data.")
+            # self.total_cell_count = {}
             for keys, values in self.cell_path_dict.items():
 
                 adata = sc.read(values['filename_data'][0]).transpose()
@@ -75,9 +82,11 @@ class Single_Cell_Data_Wrangling(object):
 
                 adata.obs['batch_name'] = keys
 
+
                 print("Batch: ", keys)
                 print(adata)
                 print("Total cells: ", adata.shape[0])
+                # self.total_cell_count[keys] = adata.shape[0]
 
                 try:
                     if self.output_dir:
@@ -90,6 +99,8 @@ class Single_Cell_Data_Wrangling(object):
                             os.makedirs(keys.split('_')[0]+"/preprocessing_figures")
                 except OSError:
                     print ('Error: Creating directory.')
+
+
                 self.cell_dict[keys.split('_')[0]].append({keys.split('_')[-1]:adata})
                 gene_temp_list = []
                 for gene in adata.var_names.tolist():
@@ -175,6 +186,28 @@ class Single_Cell_Data_Wrangling(object):
 
         self.load_h5ad = load_h5ad
 
+    def generate_metric_summary(self):
+        path_prefix = "/*/outs/metrics_summary.csv"
+        frame = pd.DataFrame()
+        list_ = []
+        index_list =[]
+        for file_ in  glob.glob(self.clr_og[0] + '/*/outs/metrics_summary.csv'):
+            index_list.append(file_.split('/')[-3])
+            df = pd.read_csv(file_,index_col=None, header=0)
+            list_.append(df)
+        frame = pd.concat(list_)
+        frame.insert(0, 'batch', index_list)
+        final_frame = frame.sort_values('batch')
+        # frame.reset_index(drop = True, inplace = True)
+        final_frame = final_frame.set_index('batch')
+        final_frame = final_frame[['Estimated Number of Cells',\
+                'Mean Reads per Cell', 'Median Genes per Cell',\
+               'Number of Reads','Sequencing Saturation',\
+                'Total Genes Detected', 'Median UMI Counts per Cell']]
+
+        # output_prefix = self.clr_out.split('/')[-3]
+        final_frame.to_excel(self.output_dir[0] + 'preprocessing_summary/metrics_summary_' + self.clr_out + '.xlsx')
+
     def check_marker_gene(self, input_dict):
         gene_temp_list = []
         for gene in input_dict.var_names.tolist():
@@ -246,7 +279,6 @@ class Single_Cell_Data_Wrangling(object):
         n_counts_vs_mito_pct_pd = pd.DataFrame({'x': x_, 'y': y_})
         n_counts_vs_mito_pct_pd.plot(x="x", y="y", kind='hist')
         if self.output_dir:
-
             plt.savefig(self.output_dir[0] +"/"+title+ "/preprocessing_figures/" + title + '_n_counts_vs_mito_pct.pdf')
         else:
             plt.savefig(title+ "/preprocessing_figures/" + title + '_n_counts_vs_mito_pct.pdf')
@@ -335,7 +367,7 @@ class Single_Cell_Data_Wrangling(object):
         print("8. Log transform single cell data.")
         for key in log_filtered_cell_dict.keys():
             print("Batch: ", key)
-            sc.pp.log1p(log_filtered_cell_dict[key].X)
+            sc.pp.log1p(log_filtered_cell_dict[key], copy=True).write(self.output_dir[0] + "/" + key + "/gene_matrices/" + key+"_raw.h5ad")
             print(log_filtered_cell_dict[key])
             self.check_marker_gene(log_filtered_cell_dict[key])
             print("\n")
@@ -372,16 +404,26 @@ class Single_Cell_Data_Wrangling(object):
                     output_dict[output_name].write("/gene_matrices/" + output_name + suffix + ".h5ad")
         print("\n")
 
-    def output_summary_pickle(self):
-        print("Exporting summary pickle file.")
-        print(self.output_summary)
-        self.output_summary.update(self.marker_gene_dict)
-        if self.output_dir:
-            with open(self.output_dir[0] + 'preprocessing_summary/' + self.clr_out + '_output_summary.pkl', 'wb') as outfile:
-                pickle.dump(self.output_summary, outfile, protocol=pickle.HIGHEST_PROTOCOL)
-        else:
-            with open('output_summary.pkl', 'w') as outfile:
-                pickle.dump('/preprocessing_summary/' + self.output_summary, outfile, protocol=pickle.HIGHEST_PROTOCOL)
+    def generate_data_frame(self):
+        columns = set()
+        index = []
+        for batch, data in self.output_summary.items():
+            index.append(batch)
+            for column_key in data.keys():
+                columns.add(column_key)
+        return pd.DataFrame(index=index, columns=list(columns))
+
+    def populate_data_frame(self):
+        report_df = self.generate_data_frame()
+        for batch, data in self.output_summary.items():
+            for column_key in data.keys():
+                report_df[column_key][batch] = self.output_summary[batch][column_key]
+        return report_df
+
+    def export_excel_report(self):
+        print("Exporting preprocessing summary report.")
+        report_df = self.populate_data_frame()
+        report_df.to_excel(self.output_dir[0] + 'preprocessing_summary/' + self.clr_out + "_preprocessing_summary_table.xlsx")
 
     def handler(self):
         cell_and_gene_filtered_dict = self.filter_cells_and_genes()
@@ -394,7 +436,8 @@ class Single_Cell_Data_Wrangling(object):
         log_filtered_cell_dict = self.log_transformation(variable_gene_filtered_cell_dict)
         regress_out_filtered_cell_dict = self.regress_out(log_filtered_cell_dict)
         self.output_h5_file(regress_out_filtered_cell_dict, False)
-        self.output_summary_pickle()
+        self.export_excel_report()
+        self.generate_metric_summary()
         print("\n")
 
         # Skip variable gene filtering
@@ -402,12 +445,12 @@ class Single_Cell_Data_Wrangling(object):
         log_filtered_cell_dict_v2 = self.log_transformation(normalized_mito_filtered_cell_dict)
         regress_out_filtered_cell_dict_v2 = self.regress_out(log_filtered_cell_dict_v2)
         self.output_h5_file(regress_out_filtered_cell_dict_v2, '_log_regressed')
-        print("\n")
+        # print("\n")
 
         # Skip variable gene filtering and regression
-        print("Rerunning pipeline at step 7 but skipping variable gene filtering and regression.")
-        log_filtered_cell_dict_v3 = self.log_transformation(normalized_mito_filtered_cell_dict)
-        self.output_h5_file(log_filtered_cell_dict_v3, '_log')
+        # print("Rerunning pipeline at step 7 but skipping variable gene filtering and regression.")
+        # log_filtered_cell_dict_v3 = self.log_transformation(normalized_mito_filtered_cell_dict)
+        # self.output_h5_file(log_filtered_cell_dict_v3, '_log')
 
 
 def generate_gene_mapping_dictionary(args):
@@ -432,6 +475,8 @@ def generate_cell_batch_dictionary(args):
         return cell_path_dict
     else:
         print(INVALID_DIRECTORY_MSG%(args.clr_out[0]))
+
+
 
 
 # error messagesEF09W6D
@@ -472,7 +517,7 @@ def main():
     parser.add_argument("--output_unprocessed_h5ad", type = str, nargs = 1, help = "Only create a annData h5 file from the filtered matrices output directory.")
 
     parser.add_argument("--output_dir", type = str, nargs = 1,
-                        help = "Output directory for processed single cell data in h5 file format and process summary json file.")
+                        help = "Output directory for processed single cell data and figures.")
 
     parser.add_argument("--min_cells", type = float, nargs = 1, default = 3,
                         help = "Mininmum number of cells. Default is set at 3 cells.")
@@ -492,7 +537,8 @@ def main():
     parser.add_argument("--low_thrsh_genes", type = float, nargs = 1, default = None,
                         help = "Lower limit cutoff for number of genes in a single cell.")
 
-    parser.add_argument("--marker_genes", default=[], nargs='*')
+    parser.add_argument('--marker_gene_file', type=argparse.FileType('r'),
+                        help = 'Path to the txt file containing marker genes.')
 
     # parse the arguments from standard input
     args = parser.parse_args()
@@ -501,20 +547,16 @@ def main():
         sc.logging.print_memory_usage()
         print("\n")
 
-        if args.marker_genes:
-            print("Marker gene input: ", args.marker_genes)
-        print("\n")
-
         execute = Single_Cell_Data_Wrangling(args.clr_out, generate_cell_batch_dictionary(args), generate_gene_mapping_dictionary(args), \
                                             args.min_cells, args.min_genes, args.counts_per_cell_after,
                                             args.thrsh_mito, args.up_thrsh_genes,\
                                             args.low_thrsh_genes, args.output_dir,\
                                              args.load_h5ad, args.output_unprocessed_h5ad,\
-                                              args.only_output_unprocessed_h5ad, args.marker_genes)
+                                             args.only_output_unprocessed_h5ad, args.marker_gene_file)
         execute.handler()
 
     else:
-        print("You are required to provide a path to the matrix file(s) and gene conver id file.")
+        print("You are required to provide a path to the matrix file(s) and gene conversion id file.")
 
 
 if __name__ == '__main__':
